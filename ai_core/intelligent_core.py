@@ -16,13 +16,18 @@ growth to produce spoken replies, actions and facial expressions.
 
 from dataclasses import dataclass
 from typing import Optional
+import logging
 
 from .dialogue_engine import DialogueEngine, DialogueResponse
-from .emotion_perception import (
-    EmotionPerception,
+from .emotion_perception import EmotionPerception
+from .constants import (
     DEFAULT_AUDIO_PATH,
     DEFAULT_IMAGE_PATH,
+    LOG_LEVEL,
 )
+
+logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 
 
 @dataclass
@@ -90,16 +95,19 @@ class IntelligentCore:
             information. If omitted, defaults defined in
             :class:`UserInput` are used.
         """
+        logger.info("Processing input from %s", user.user_id)
         # 1. optional speech recognition
         if not user.text and self.asr_url:
             from .service_clients import call_asr
 
             user.text = call_asr(user.audio_path, self.asr_url)
+            logger.debug("ASR result: %s", user.text)
 
         # 2. emotion & identity perception
         emotion_state = self.emotion.perceive(user.audio_path, user.image_path)  # 情绪识别
         mood = emotion_state.overall()  # 综合情绪结果
         user_id = self.emotion.recognize_identity(user.audio_path)  # 声纹识别身份
+        logger.debug("Emotion: %s, user_id: %s", mood, user_id)
         user.user_id = user_id
         from . import global_state
 
@@ -115,6 +123,7 @@ class IntelligentCore:
             touched=user.touched,
             touch_zone=user.touch_zone,
         )  # 生成回复
+        logger.info("Response text: %s", response.text)
 
         # response contains text, action, expression and optional audio URL
         return response
