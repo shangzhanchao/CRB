@@ -15,23 +15,19 @@ intelligent_core   -> 模块调度器
 
 from .personality_engine import PersonalityEngine
 from .semantic_memory import SemanticMemory
-from .emotion_perception import (
-    EmotionPerception,
-    EmotionState,
-    DEFAULT_AUDIO_PATH,
-    DEFAULT_IMAGE_PATH,
-)
+from .emotion_perception import EmotionPerception, EmotionState
 from .dialogue_engine import DialogueEngine, DialogueResponse
 from .intelligent_core import IntelligentCore, UserInput
-from .service_clients import (
-    call_asr,
-    call_tts,
-    call_llm,
-    call_voiceprint,
+from .service_clients import call_asr, call_tts, call_llm, call_voiceprint
+from .constants import (
     DEFAULT_TTS_URL,
     DEFAULT_ASR_URL,
     DEFAULT_LLM_URL,
     DEFAULT_VOICEPRINT_URL,
+    DEFAULT_AUDIO_PATH,
+    DEFAULT_IMAGE_PATH,
+    DEFAULT_GROWTH_STAGE,
+    DEFAULT_PERSONALITY_VECTOR,
 )
 from . import global_state
 from .global_state import (
@@ -69,4 +65,6 @@ __all__ = [
     "days_since_start",
     "AUDIO_DATA_SECONDS",
     "global_state",
+    "DEFAULT_GROWTH_STAGE",
+    "DEFAULT_PERSONALITY_VECTOR",
 ]
