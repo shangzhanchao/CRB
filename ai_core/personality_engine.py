@@ -11,6 +11,10 @@ Module layout commentary helps new developers quickly understand how each
 piece fits together.
 """
 
+import logging
+
+from .constants import DEFAULT_PERSONALITY_VECTOR, LOG_LEVEL
+
 
 DEFAULT_BEHAVIOR_MAP = {
     "praise": [0.1, 0.05, 0.1, 0.05, -0.05],
@@ -47,10 +51,12 @@ class PersonalityEngine:
         """
         # OCEAN: Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism
         # OCEAN：开放性、责任心、外向性、宜人性、神经质
-        self.vector = [0.0] * 5  # five-dimensional OCEAN trait vector 人格向量
+        self.vector = list(DEFAULT_PERSONALITY_VECTOR)  # 初始外向人格
         self.momentum = momentum  # 动量衰减因子
         # 行为标签映射表，可自定义传入
         self.behavior_map = behavior_map or DEFAULT_BEHAVIOR_MAP
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.setLevel(LOG_LEVEL)
 
     def update(self, behavior_tag: str = "neutral") -> None:
         """Update personality vector based on behavior tag.
@@ -65,11 +71,13 @@ class PersonalityEngine:
             ``"neutral"`` 时，不会对人格向量产生调整。
         """
         delta = self.behavior_map.get(behavior_tag, [0.0] * 5)
+        self.logger.debug("Updating personality with tag %s", behavior_tag)
         # 使用动量衰减更新人格向量，确保变化平滑
         self.vector = [
             max(-1.0, min(1.0, self.momentum * v + (1 - self.momentum) * d))
             for v, d in zip(self.vector, delta)
         ]
+        self.logger.debug("New personality vector: %s", self.vector)
 
     def get_personality_style(self) -> str:
         """Return a simple language tone based on current personality.
@@ -79,11 +87,14 @@ class PersonalityEngine:
         extroversion = self.vector[2]  # index 2 corresponds to Extraversion
         if extroversion > 0.5:
             # 高外向性 -> 热情
-            return "enthusiastic"
-        if extroversion < -0.5:
+            style = "enthusiastic"
+        elif extroversion < -0.5:
             # 低外向性 -> 冷淡
-            return "cold"
-        return "neutral"
+            style = "cold"
+        else:
+            style = "neutral"
+        self.logger.debug("Personality style: %s", style)
+        return style
 
     def get_vector(self):
         """Return the current OCEAN vector. 返回当前的人格向量。"""
