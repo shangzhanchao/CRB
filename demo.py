@@ -3,7 +3,11 @@
 陪伴机器人智能大脑演示脚本。
 """
 
+import logging
 from ai_core import IntelligentCore, UserInput
+from ai_core.constants import LOG_LEVEL
+
+logging.basicConfig(level=LOG_LEVEL)
 
 
 def main() -> None:
