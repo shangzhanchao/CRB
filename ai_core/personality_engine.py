@@ -1,4 +1,4 @@
-import numpy as np
+"""Personality evolution engine for AI companion."""
 
 
 class PersonalityEngine:
@@ -14,13 +14,13 @@ class PersonalityEngine:
         """
         # OCEAN: Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism
         # OCEAN：开放性、责任心、外向性、宜人性、神经质
-        self.vector = np.zeros(5, dtype=float)
+        self.vector = [0.0] * 5
         self.momentum = momentum
         # simple behavior map for demo purposes
         # 简单的行为标签映射表，用于示例
         self.behavior_map = {
-            "praise": np.array([0.1, 0.05, 0.1, 0.05, -0.05]),
-            "criticism": np.array([-0.1, -0.05, -0.1, -0.05, 0.1]),
+            "praise": [0.1, 0.05, 0.1, 0.05, -0.05],
+            "criticism": [-0.1, -0.05, -0.1, -0.05, 0.1],
         }
 
     def update(self, behavior_tag: str) -> None:
@@ -28,8 +28,11 @@ class PersonalityEngine:
 
         根据行为标签更新人格向量。
         """
-        delta = self.behavior_map.get(behavior_tag, np.zeros(5))
-        self.vector = self.momentum * self.vector + (1 - self.momentum) * delta
+        delta = self.behavior_map.get(behavior_tag, [0.0] * 5)
+        self.vector = [
+            self.momentum * v + (1 - self.momentum) * d
+            for v, d in zip(self.vector, delta)
+        ]
 
     def get_personality_style(self) -> str:
         """Return a simple language tone based on current personality.
