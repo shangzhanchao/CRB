@@ -5,10 +5,17 @@ class TestIntelligentCore(unittest.TestCase):
     def test_process(self):
         reset()
         core = IntelligentCore()
-        user = UserInput(audio_path='user1.wav', image_path='face.png', text='Hi')
+        user = UserInput(
+            audio_path='user1.wav',
+            image_path='face.png',
+            text='Hi',
+            touched=True,
+            touch_zone=1,
+        )
         reply = core.process(user)
         self.assertIsInstance(reply.text, str)
         self.assertEqual(global_state.INTERACTION_COUNT, 1)
+        self.assertEqual(core.dialogue.memory.records[-1]['touch_zone'], 1)
 
 if __name__ == '__main__':
     unittest.main()
