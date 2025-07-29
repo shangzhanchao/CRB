@@ -12,6 +12,7 @@ SemanticMemory -> 核心类
 
 import datetime
 import hashlib
+import logging
 from typing import List, Dict, Any
 
 try:
@@ -23,6 +24,11 @@ try:
     import faiss  # type: ignore
 except ImportError:  # pragma: no cover
     faiss = None
+
+from .constants import LOG_LEVEL
+
+logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 
 
 class SemanticMemory:
@@ -59,6 +65,7 @@ class SemanticMemory:
         使用哈希算法将文本转换为确定性向量。
         """
         digest = hashlib.sha256(text.encode("utf-8")).digest()  # 生成文本哈希
+        logger.debug("Embedding text: %s", text)
         if np is not None:
             arr = np.frombuffer(digest, dtype=np.uint8).astype("float32") / 255.0
             if arr.size < self.vector_dim:
@@ -107,9 +114,10 @@ class SemanticMemory:
             "topic_vector": vec,
         }
         self.records.append(record)
+        logger.debug("Memory added: %s", record)
         if self.index is not None and np is not None:
             self.index.add(np.expand_dims(np.array(vec, dtype="float32"), 0))
-
+        
     def query_memory(
         self, prompt: str, top_k: int = 3, user_id: str | None = None
     ) -> List[Dict[str, Any]]:
@@ -128,6 +136,7 @@ class SemanticMemory:
             如提供该参数，则只返回该用户的历史记录。
         """
         query_vec = self._embed(prompt)
+        logger.debug("Querying memory for: %s", prompt)
         candidates = (
             [r for r in self.records if user_id is None or r.get("user_id") == user_id]
         )
@@ -136,6 +145,7 @@ class SemanticMemory:
                 np.expand_dims(np.array(query_vec, dtype="float32"), 0), top_k
             )
             result = [candidates[i] for i in indices[0] if i < len(candidates)]
+            logger.debug("FAISS results: %s", result)
             return result
         # fallback linear search
         # 回退到线性搜索
@@ -144,4 +154,6 @@ class SemanticMemory:
 
         scores = [distance(r["topic_vector"], query_vec) for r in candidates]
         top_indices = sorted(range(len(scores)), key=lambda i: scores[i])[:top_k]
-        return [candidates[i] for i in top_indices]  # 返回按距离排序的结果
+        results = [candidates[i] for i in top_indices]
+        logger.debug("Linear search results: %s", results)
+        return results  # 返回按距离排序的结果
