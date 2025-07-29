@@ -76,6 +76,7 @@ class SemanticMemory:
         mood_tag: str = "neutral",
         user_id: str = "unknown",
         touched: bool = False,
+        touch_zone: int | None = None,
     ) -> None:
         """Add a conversation record into memory.
 
@@ -91,7 +92,9 @@ class SemanticMemory:
             Emotion label associated with the conversation. Defaults to
             ``"neutral"`` when unspecified.
             对应的情绪标签，默认值为 ``"neutral"``。
-        """
+        touch_zone: int | None, optional
+            Identifier for the touch sensor zone if a touch interaction
+            occurred.  触摸传感器的区域编号，可为 ``None`` 表示无触摸。"""
         vec = self._embed(user_text)
         record = {
             "time": datetime.datetime.utcnow(),
@@ -100,6 +103,7 @@ class SemanticMemory:
             "mood_tag": mood_tag,
             "user_id": user_id,
             "touched": touched,
+            "touch_zone": touch_zone,
             "topic_vector": vec,
         }
         self.records.append(record)
