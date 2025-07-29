@@ -1,6 +1,16 @@
 """AI Companion Robot core modules.
 
 AI陪伴机器人核心模块。
+
+Structure overview:
+
+```
+personality_engine -> OCEAN人格引擎
+semantic_memory    -> 语义记忆系统
+emotion_perception -> 情绪识别模块
+dialogue_engine    -> 对话生成
+intelligent_core   -> 模块调度器
+```
 """
 
 from .personality_engine import PersonalityEngine

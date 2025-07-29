@@ -1,3 +1,15 @@
+"""Semantic episodic memory module.
+
+文件结构说明：
+
+```
+SemanticMemory -> 核心类
+  _embed()     -> 文本哈希嵌入函数
+  add_memory() -> 存入对话记录
+  query_memory() -> 相似内容检索
+```
+"""
+
 import datetime
 import hashlib
 from typing import List, Dict, Any
@@ -23,22 +35,30 @@ class SemanticMemory:
         """Initialize memory store and optional FAISS index.
 
         初始化记忆存储及 FAISS 索引（如果可用）。
+
+        Parameters
+        ----------
+        vector_dim: int, optional
+            Dimensionality of embedding vectors. 嵌入向量的维度，默认为 ``384``。
+        use_faiss: bool | None, optional
+            Whether to use FAISS for similarity search. ``None`` 代表自动判断
+            (如果已安装 FAISS 就使用)。
         """
-        self.vector_dim = vector_dim
-        self.records: List[Dict[str, Any]] = []
+        self.vector_dim = vector_dim  # 向量维度
+        self.records: List[Dict[str, Any]] = []  # 存储对话记录
         if use_faiss is None:
             use_faiss = faiss is not None
         if use_faiss and faiss is not None:
-            self.index = faiss.IndexFlatL2(vector_dim)
+            self.index = faiss.IndexFlatL2(vector_dim)  # 使用 FAISS 建立索引
         else:
-            self.index = None
+            self.index = None  # 回退到纯 Python 搜索
 
     def _embed(self, text: str):
         """Convert text to a deterministic vector using hashing.
 
         使用哈希算法将文本转换为确定性向量。
         """
-        digest = hashlib.sha256(text.encode("utf-8")).digest()
+        digest = hashlib.sha256(text.encode("utf-8")).digest()  # 生成文本哈希
         if np is not None:
             arr = np.frombuffer(digest, dtype=np.uint8).astype("float32") / 255.0
             if arr.size < self.vector_dim:
@@ -86,6 +106,13 @@ class SemanticMemory:
         """Return most relevant past interactions for the prompt.
 
         根据提示查询最相关的历史对话。
+
+        Parameters
+        ----------
+        prompt: str
+            Query text used for retrieving memories.
+        top_k: int, optional
+            Number of records to return. 默认返回 3 条记录。
         """
         query_vec = self._embed(prompt)
         if self.index is not None and np is not None and len(self.records) > 0:
@@ -97,8 +124,8 @@ class SemanticMemory:
         # fallback linear search
         # 回退到线性搜索
         def distance(a, b):
-            return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+            return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5  # 欧氏距离
 
         scores = [distance(r["topic_vector"], query_vec) for r in self.records]
         top_indices = sorted(range(len(scores)), key=lambda i: scores[i])[:top_k]
-        return [self.records[i] for i in top_indices]
+        return [self.records[i] for i in top_indices]  # 返回按距离排序的结果

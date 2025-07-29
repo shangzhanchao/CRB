@@ -1,4 +1,15 @@
-"""Personality evolution engine for AI companion."""
+"""Personality evolution engine for AI companion.
+
+该文件包含以下结构：
+
+```
+DEFAULT_BEHAVIOR_MAP -> 行为标签到 OCEAN 向量增量的映射
+PersonalityEngine    -> 核心类，负责维护人格向量并依据行为更新
+```
+
+Module layout commentary helps new developers quickly understand how each
+piece fits together.
+"""
 
 
 DEFAULT_BEHAVIOR_MAP = {
@@ -23,11 +34,20 @@ class PersonalityEngine:
         """Initialize the personality vector and settings.
 
         初始化五维人格向量和相关配置。
+
+        Parameters
+        ----------
+        momentum: float, optional
+            Momentum decay factor controlling update smoothness. 默认为 ``0.9``
+            表示更新时保持 90% 的历史状态。
+        behavior_map: dict | None, optional
+            Mapping from behavior tag to OCEAN vector deltas. 如未提供，
+            默认使用 :data:`DEFAULT_BEHAVIOR_MAP`。
         """
         # OCEAN: Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism
         # OCEAN：开放性、责任心、外向性、宜人性、神经质
-        self.vector = [0.0] * 5
-        self.momentum = momentum
+        self.vector = [0.0] * 5  # five-dimensional OCEAN trait vector 人格向量
+        self.momentum = momentum  # 动量衰减因子
         # 行为标签映射表，可自定义传入
         self.behavior_map = behavior_map or DEFAULT_BEHAVIOR_MAP
 
@@ -44,6 +64,7 @@ class PersonalityEngine:
             ``"neutral"`` 时，不会对人格向量产生调整。
         """
         delta = self.behavior_map.get(behavior_tag, [0.0] * 5)
+        # 使用动量衰减更新人格向量，确保变化平滑
         self.vector = [
             max(-1.0, min(1.0, self.momentum * v + (1 - self.momentum) * d))
             for v, d in zip(self.vector, delta)
@@ -54,7 +75,7 @@ class PersonalityEngine:
 
         根据当前的人格向量返回语言风格。
         """
-        extroversion = self.vector[2]
+        extroversion = self.vector[2]  # index 2 corresponds to Extraversion
         if extroversion > 0.5:
             # 高外向性 -> 热情
             return "enthusiastic"

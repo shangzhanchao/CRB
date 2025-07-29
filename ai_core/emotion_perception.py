@@ -1,3 +1,13 @@
+"""Emotion perception module.
+
+文件结构：
+
+```
+EmotionState      -> 数据类，保存音频和图像情绪
+EmotionPerception -> 识别语音与图像情绪并融合
+```
+"""
+
 import os
 import wave
 import audioop
@@ -24,8 +34,8 @@ class EmotionState:
         return self.from_voice or self.from_face
 
 
-DEFAULT_AUDIO_PATH = "voice.wav"
-DEFAULT_IMAGE_PATH = "face.png"
+DEFAULT_AUDIO_PATH = "voice.wav"  # 演示用的音频文件路径
+DEFAULT_IMAGE_PATH = "face.png"   # 演示用的图像文件路径
 
 
 class EmotionPerception:
@@ -38,6 +48,15 @@ class EmotionPerception:
         """Set up any required models.
 
         初始化情绪识别模型或资源。
+
+        Parameters
+        ----------
+        rms_angry: int, optional
+            Threshold RMS value above which audio is considered angry.
+            音频均方根超过该值则判断为 "angry"，默认 5000。
+        rms_calm: int, optional
+            Threshold RMS below which audio is considered calm.
+            音频均方根低于该值则判断为 "calm"，默认 1000。
         """
         self.rms_angry = rms_angry
         self.rms_calm = rms_calm
@@ -63,7 +82,7 @@ class EmotionPerception:
             if rms < self.rms_calm:
                 return "calm"
         except Exception:
-            # file missing or unreadable
+            # file missing or unreadable 文件缺失或无法读取
             pass
         name = os.path.basename(audio_path).lower()
         if "angry" in name:
@@ -110,4 +129,4 @@ class EmotionPerception:
         """
         voice_emotion = self.recognize_from_voice(audio_path)
         face_emotion = self.recognize_from_face(image_path)
-        return EmotionState(from_voice=voice_emotion, from_face=face_emotion)
+        return EmotionState(from_voice=voice_emotion, from_face=face_emotion)  # 返回融合后的情绪状态

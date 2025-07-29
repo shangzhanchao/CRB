@@ -15,6 +15,18 @@ for building an AI companion. The core components include:
 These modules are located in the `ai_core` package and are designed as simple
 starting points for a more advanced system.
 
+## Code Structure
+
+```
+ai_core/
+  __init__.py          - module exports
+  personality_engine.py - OCEAN 人格成长逻辑
+  semantic_memory.py    - 向量化语义记忆
+  emotion_perception.py - 声音与视觉情绪识别
+  dialogue_engine.py    - 成长式对话生成
+  intelligent_core.py   - 子模块调度与总入口
+```
+
 ## Architecture Overview
 
 1. **EmotionPerception** reads audio and image inputs (`DEFAULT_AUDIO_PATH`,

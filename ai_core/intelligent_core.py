@@ -1,3 +1,13 @@
+"""Module orchestrating all AI submodules.
+
+文件结构：
+
+```
+UserInput       -> 数据类
+IntelligentCore -> 调度情绪识别和对话生成
+```
+"""
+
 from dataclasses import dataclass
 from typing import Optional
 
@@ -42,8 +52,8 @@ class IntelligentCore:
         emotion: EmotionPerception, optional
             Emotion perception module. 默认为 :class:`EmotionPerception`。
         """
-        self.dialogue = dialogue or DialogueEngine()
-        self.emotion = emotion or EmotionPerception()
+        self.dialogue = dialogue or DialogueEngine()         # 对话系统
+        self.emotion = emotion or EmotionPerception()        # 情绪识别系统
 
     def process(self, user: UserInput) -> str:
         """Process user input and generate a response.
@@ -56,7 +66,7 @@ class IntelligentCore:
             Container holding audio path, image path and text. If omitted,
             defaults defined in :class:`UserInput` are used.
         """
-        emotion_state = self.emotion.perceive(user.audio_path, user.image_path)
-        mood = emotion_state.overall()
-        response = self.dialogue.generate_response(user.text, mood_tag=mood)
+        emotion_state = self.emotion.perceive(user.audio_path, user.image_path)  # 情绪识别
+        mood = emotion_state.overall()  # 综合情绪结果
+        response = self.dialogue.generate_response(user.text, mood_tag=mood)  # 生成回复
         return response
