@@ -6,6 +6,8 @@ class TestEmotionPerception(unittest.TestCase):
         ep = EmotionPerception()
         state = ep.perceive('voice.wav', 'face.png')
         self.assertEqual(state.overall(), 'neutral')
+        uid = ep.recognize_identity('user1.wav')
+        self.assertEqual(uid, 'user1')
 
 if __name__ == '__main__':
     unittest.main()
