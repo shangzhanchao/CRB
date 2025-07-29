@@ -21,19 +21,24 @@ starting points for a more advanced system.
 
 At a high level, the companion robot receives **voice**, **touch** and
 **camera** inputs, which the cognitive core converts into emotions and semantic
-context. After updating its personality and querying memory, it replies with
-text that can be synthesized to speech, accompanied by an action and facial
-expression.
+context. A large language model then drives the reply generation, applying
+growth- and personality-specific prompts. The result is text that can be
+synthesized to speech, accompanied by an action and facial expression.
 
 ## External Services
 
 The modules can optionally connect to remote services for speech and text
-processing:
+processing. The most important one is the multimodal LLM at ``DEFAULT_LLM_URL``
+(``llm.szc.com``), which powers advanced dialogue generation and emotion
+interpretation.  If you deploy your own LLM service, point ``LLM_URL`` to it so
+the system can fully function:
 
-- **ASR** (`asr.e-inv.cn`) – convert user audio to text.
-- **Voiceprint** (`voiceprint.e-inv.cn`) – identify the speaker.
-- **LLM** (`llm.e-inv.cn`) – generate richer replies.
-- **TTS** (`tts.e-inv.cn`) – synthesize reply audio.
+- **ASR** (`asr.szc.com`) – convert user audio to text.
+- **Voiceprint** (`voiceprint.szc.com`) – identify the speaker.
+- **LLM** (`llm.szc.com`) – generate richer replies.
+  This endpoint is referenced by ``DEFAULT_LLM_URL`` and is essential for
+  advanced features such as story telling and emotion-aware responses.
+- **TTS** (`tts.szc.com`) – synthesize reply audio.
 
 Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via
 environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL`` and
@@ -71,6 +76,10 @@ demo.py                - 命令行演示脚本
    robot has interacted and how much speech data it has processed. These
    metrics unlock growth stages.
 
+During response generation, the dialogue engine builds a prompt for the
+large language model using the current **growth stage**, **personality style**
+and relevant **memory snippets** so the model can craft context-aware replies.
+
 ## Growth Stages
 
 The robot's language ability evolves through four phases driven by
@@ -83,10 +92,57 @@ interaction counts and audio duration:
 3. **resonate** (10-30 days or <50 interactions/900s audio) – short caring
    sentences and basic questions.
 4. **awaken** (30+ days and enough data) – remembers conversations and offers
-   proactive suggestions.
+proactive suggestions.
+
+## LLM Prompt Templates
+
+The dialogue engine composes prompts for the large language model based on the
+robot's **growth stage**, its **OCEAN** personality vector and any touch
+feedback:
+
+- **Stage prompts** map ``sprout``, ``enlighten``, ``resonate`` and ``awaken`` to
+  short English hints so the LLM knows the robot's maturity level.
+- **Personality prompts** describe the five traits – Openness, Conscientiousness,
+  Extraversion, Agreeableness and Neuroticism – letting the model choose a tone
+  such as "curious" or "reliable".
+- **Touch prompts** indicate which sensor was triggered: head, back or chest.
+
+By combining these phrases with recent memories, the system gives the LLM
+flexible instructions to craft an appropriate reply.
+
+## Animation Mapping
+
+The dialogue engine returns both *action* and *expression* fields.  Expressions
+encode facial animation cues while actions describe body motions:
+
+
+| 情绪 Mood | 面部动画描述 Facial animation | 动作逻辑 Action |
+|-----------|--------------------------------------------|----------------------------------------------|
+| happy / 欢快 | 微笑、眨眼、眼神上扬 → 亮眼色彩、头部轻摆、手臂小幅打开 | 点头+手微抬 (±15°俯仰, ±10°摇摆, 手上扬10°) |
+| confused / 疑惑 | 斜视、眼神聚焦 → 停顿、轻微侧头、眼睛左右快速移动 | 斜头+左右切换眼神 (±10°摆动, 手部静止) |
+| sad / 难过 | 眼角下垂、闭眼 → 低亮度、轻微低头、手臂收回 | 缓慢低头+手收回 (俯仰-15°, 手臂弧线内收) |
+| shy / 害羞 | 偏头、眼神回避 → 面部红晕、语音柔化、微幅震颤 | idle + subtle tremble |
+| excited / 兴奋 | 眼神放大、频繁眨眼 → 快速摆头、双手前伸动作 | 快速摇头, 手前伸 |
+| surprised / 惊讶 | 抬头张眼 → 头部抬起，双手急速抬高 | 抬头+双手抬高>25° |
+
+When the robot is touched, an additional action such as ``hug`` or ``pat`` is
+appended according to the touch zone.
 
 Parameters of each module can be customized if the default settings do not
 fit your scenario.
+
+## Input Parameters
+
+The :class:`~ai_core.IntelligentCore` accepts a :class:`~ai_core.UserInput`
+instance describing the current interaction:
+
+* ``audio_path`` – path to the user's voice recording
+* ``image_path`` – optional face image
+* ``text`` – recognized or typed text
+* ``touched`` – whether a touch sensor was activated
+* ``touch_zone`` – integer ID of the touched area for more granular feedback
+
+All parameters are optional and default to demo files or ``None``.
 
 ## 简要说明
 
@@ -104,7 +160,8 @@ used when no specific paths are provided. Type `quit` to exit.
 
 使用方法：运行 `python demo.py`，输入内容即可与示例系统交互，输入 `quit` 结束。
 如未指定语音或图像文件，系统将使用默认的 `voice.wav` 与 `face.png` 进行演示。
-当 `UserInput.touched` 为 True 时，系统会根据触摸行为调整人格向量。
+当 `UserInput.touched` 为 True 时，可额外传入 `touch_zone` 指定触摸区域，
+系统会依此记录并给出相应动作反馈。
 
 ## Testing
 
