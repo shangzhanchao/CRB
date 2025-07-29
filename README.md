@@ -1,4 +1,5 @@
 # CECR
+Cognitive Engine for Companion Robot
 
 Cognitive Engine for Companion Robot (CECR) provides a set of Python modules
 for building an AI companion. The core components include:
@@ -14,7 +15,8 @@ starting points for a more advanced system.
 
 ## 简要说明
 
-CECR 提供一系列用于构建 AI 陪伴机器人的 Python 模块，代码内含中英双语注释，方便理解和二次开发。
+CECR 提供一系列用于构建 AI 陪伴机器人的 Python 模块，代码内含中英双语注释，方便理
+解和二次开发。
 
 ## Usage
 
@@ -22,3 +24,13 @@ Run `python demo.py` and start typing messages. The demo shows how the modules
 work together to produce responses. Type `quit` to exit.
 
 使用方法：运行 `python demo.py`，输入内容即可与示例系统交互，输入 `quit` 结束。
+
+## Testing
+
+Unit tests are provided for each core module. Execute them with:
+
+```bash
+python -m unittest discover -s tests
+```
+
+运行以上命令即可验证各模块和整体系统的基本功能。
