@@ -1,29 +1,110 @@
-# CECR
-Cognitive Engine for Companion Robot
+# CRB
+Companion Robot Brain
+# 陪伴机器人智能大脑
 
-Cognitive Engine for Companion Robot (CECR) provides a set of Python modules
-for building an AI companion. The core components include:
+*Companion Robot Intelligent Brain*
+
+The **Companion Robot Intelligent Brain** provides a set of Python modules for
+building an AI companion. The core components include:
 
 - **PersonalityEngine**: tracks OCEAN personality traits with momentum decay.
-- **SemanticMemory**: stores conversation history in a vector database.
-- **EmotionPerception**: recognizes emotions from voice and face inputs.
-- **DialogueEngine**: generates responses based on personality and memory.
+- **SemanticMemory**: stores conversation history in a vector database using
+  hashed embeddings for lightweight semantic search.
+- **EmotionPerception**: recognizes emotions from voice and face inputs with
+  simple heuristics based on file content or name.
+- **DialogueEngine**: generates responses based on personality and memory and
+  evolves from cold start to active interaction.
 - **IntelligentCore**: orchestrates the above modules.
 
 These modules are located in the `ai_core` package and are designed as simple
 starting points for a more advanced system.
 
+At a high level, the companion robot receives **voice**, **touch** and
+**camera** inputs, which the cognitive core converts into emotions and semantic
+context. After updating its personality and querying memory, it replies with
+text that can be synthesized to speech, accompanied by an action and facial
+expression.
+
+## External Services
+
+The modules can optionally connect to remote services for speech and text
+processing:
+
+- **ASR** (`asr.e-inv.cn`) – convert user audio to text.
+- **Voiceprint** (`voiceprint.e-inv.cn`) – identify the speaker.
+- **LLM** (`llm.e-inv.cn`) – generate richer replies.
+- **TTS** (`tts.e-inv.cn`) – synthesize reply audio.
+
+Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via
+environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL`` and
+``TTS_URL``.
+
+外部接口支持语音识别、声纹识别、大模型推理与语音合成，可在实例化
+`IntelligentCore` 时传入对应的服务地址，或通过环境变量进行配置。
+
+## Code Structure
+
+```
+ai_core/
+  __init__.py          - module exports
+  personality_engine.py - OCEAN 人格成长逻辑
+  semantic_memory.py    - 向量化语义记忆
+  emotion_perception.py - 声音与视觉情绪识别
+  dialogue_engine.py    - 成长式对话生成
+ intelligent_core.py   - 子模块调度与总入口
+  global_state.py       - 全局交互计数与语音时长
+  service_clients.py    - 调用外部 ASR/LLM/TTS 服务的工具
+demo.py                - 命令行演示脚本
+```
+
+## Architecture Overview
+
+1. **EmotionPerception** reads audio and image inputs (`DEFAULT_AUDIO_PATH`,
+   `DEFAULT_IMAGE_PATH`) and outputs a fused emotion tag.
+2. **DialogueEngine** uses `PersonalityEngine` and `SemanticMemory` to produce
+   responses while updating interaction stages and returns structured
+   information for voice, action and facial expression.
+3. **IntelligentCore** orchestrates the pipeline: emotion recognition → model
+   feedback → personality growth → voice generation, storing each dialog in the
+   memory cloud.
+4. `global_state.INTERACTION_COUNT` 和 `AUDIO_DATA_SECONDS` track how much the
+   robot has interacted and how much speech data it has processed. These
+   metrics unlock growth stages.
+
+## Growth Stages
+
+The robot's language ability evolves through four phases driven by
+interaction counts and audio duration:
+
+1. **sprout** (0-3 days, <5 interactions or <60s of audio) – baby babble with
+   mostly actions.
+2. **enlighten** (3-10 days or <20 interactions/300s audio) – mimics simple
+   greetings like “你好”.
+3. **resonate** (10-30 days or <50 interactions/900s audio) – short caring
+   sentences and basic questions.
+4. **awaken** (30+ days and enough data) – remembers conversations and offers
+   proactive suggestions.
+
+Parameters of each module can be customized if the default settings do not
+fit your scenario.
+
 ## 简要说明
 
-CECR 提供一系列用于构建 AI 陪伴机器人的 Python 模块，代码内含中英双语注释，方便理
-解和二次开发。
+陪伴机器人智能大脑提供一系列用于构建 AI 陪伴机器人的 Python 模块，代码内含中英双语注释，方便理解和二次开发。
+其中示例算法使用哈希向量检索语义记忆，并根据文件名或音量等简单特征识别情绪。系统依据累计交互次数与语音时长解锁“萌芽→启蒙→共鸣→觉醒”四个阶段，触摸交互时会给出声音、动作和表情反馈，持续更新“性格树”与“记忆云”。
+
+在整体流程上，用户的语音、触摸或图像首先进入 ``IntelligentCore``，随后依次经历情绪识别、语义记忆检索、人格成长以及成长式对话生成，最终输出语音合成链接、动作指令及表情标签，实现“感知 → 思考 → 行动”的闭环。
 
 ## Usage
 
 Run `python demo.py` and start typing messages. The demo shows how the modules
-work together to produce responses. Type `quit` to exit.
+work together. Voice file names encode the speaker ID and each call updates the
+global interaction counter. Default demo files `voice.wav` and `face.png` are
+used when no specific paths are provided. Type `quit` to exit.
 
 使用方法：运行 `python demo.py`，输入内容即可与示例系统交互，输入 `quit` 结束。
+如未指定语音或图像文件，系统将使用默认的 `voice.wav` 与 `face.png` 进行演示。
+当 `UserInput.touched` 为 True 时，系统会根据触摸行为调整人格向量。
 
 ## Testing
 
