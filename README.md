@@ -44,6 +44,9 @@ Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via
 environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL`` and
 ``TTS_URL``.
 
+All modules emit informative logs controlled by ``LOG_LEVEL`` which defaults
+to ``INFO``. Running the demo configures the logging system accordingly.
+
 外部接口支持语音识别、声纹识别、大模型推理与语音合成，可在实例化
 `IntelligentCore` 时传入对应的服务地址，或通过环境变量进行配置。
 
@@ -59,6 +62,7 @@ ai_core/
  intelligent_core.py   - 子模块调度与总入口
   global_state.py       - 全局交互计数与语音时长
   service_clients.py    - 调用外部 ASR/LLM/TTS 服务的工具
+  constants.py          - 全局常量與默認值
 demo.py                - 命令行演示脚本
 ```
 
@@ -93,6 +97,10 @@ interaction counts and audio duration:
    sentences and basic questions.
 4. **awaken** (30+ days and enough data) – remembers conversations and offers
 proactive suggestions.
+
+By default the system begins in the **enlighten** stage with an
+**extraversion-oriented** personality vector as defined in
+``DEFAULT_GROWTH_STAGE`` and ``DEFAULT_PERSONALITY_VECTOR``.
 
 ## LLM Prompt Templates
 
