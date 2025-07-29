@@ -22,12 +22,17 @@ compose a reply, then maps mood and touch into actions and expressions.
 
 from dataclasses import dataclass
 from typing import Optional
+import logging
 
 from . import global_state
 
 from .personality_engine import PersonalityEngine
 from .semantic_memory import SemanticMemory
 from .service_clients import call_llm, call_tts
+from .constants import DEFAULT_GROWTH_STAGE, LOG_LEVEL
+
+logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 
 # Expression mapping for facial animations
 # Facial emotion mapping. Keys use English mood tags while values describe the
@@ -143,6 +148,9 @@ class DialogueEngine:
         self.llm_url = llm_url
         self.tts_url = tts_url
         self.stage = global_state.get_growth_stage()  # 初始成长阶段
+        if not self.stage:
+            self.stage = DEFAULT_GROWTH_STAGE
+        logger.debug("Dialogue engine initialized at stage %s", self.stage)
 
     def generate_response(
         self,
@@ -169,6 +177,9 @@ class DialogueEngine:
             Identifier for the touch sensor zone. ``None`` means no touch
             detected.
         """
+        logger.info(
+            "Generating response for user %s with mood %s", user_id, mood_tag
+        )
         # 1. personality update
         # 根据情绪标签与触摸行为更新人格向量
         self.personality.update(mood_tag)
@@ -180,6 +191,7 @@ class DialogueEngine:
 
         style = self.personality.get_personality_style()
         past = self.memory.query_memory(user_text, user_id=user_id)
+        logger.debug("Retrieved %d past records", len(past))
         # 从记忆中取得相关历史回答并简要拼接
         past_summary = " ".join([p["ai_response"] for p in past])
 
@@ -217,6 +229,7 @@ class DialogueEngine:
             touched,
             touch_zone,
         )
+        logger.debug("Memory stored for user %s", user_id)
 
         # 5. derive action and expression from mood
         mood_key = mood_tag if mood_tag in FACE_ANIMATION_MAP else "happy"
@@ -228,9 +241,12 @@ class DialogueEngine:
             # append touch action detail
             zone_action = {0: "hug", 1: "pat", 2: "tickle"}.get(touch_zone, "hug")
             action += f" + {zone_action}"
+        logger.debug("Action: %s | Expression: %s", action, expression)
 
         # TTS generates an audio URL when service is provided
         audio_url = call_tts(response, self.tts_url) if self.tts_url else ""
+
+        logger.info("Generated response: %s", response)
 
         return DialogueResponse(
             text=response,
