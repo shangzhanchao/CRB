@@ -1,4 +1,5 @@
 # CECR
+Cognitive Engine for Companion Robot
 
 Cognitive Engine for Companion Robot (CECR) provides a set of Python modules
 for building an AI companion. The core components include:
