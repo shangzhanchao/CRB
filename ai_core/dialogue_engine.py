@@ -29,75 +29,21 @@ from . import global_state
 from .personality_engine import PersonalityEngine
 from .semantic_memory import SemanticMemory
 from .service_clients import call_llm, call_tts
-from .constants import DEFAULT_GROWTH_STAGE, LOG_LEVEL
+from .constants import (
+    DEFAULT_GROWTH_STAGE,
+    LOG_LEVEL,
+    FACE_ANIMATION_MAP,
+    ACTION_MAP,
+    STAGE_LLM_PROMPTS,
+    STAGE_LLM_PROMPTS_CN,
+    OCEAN_LLM_PROMPTS,
+    OCEAN_LLM_PROMPTS_CN,
+    TOUCH_ZONE_PROMPTS,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
 
-# Expression mapping for facial animations
-# Facial emotion mapping. Keys use English mood tags while values describe the
-# Chinese facial animation cues defined by product design.
-# 面部情绪映射，键为英文标签，值根据产品需求给出中文动作描述。
-FACE_ANIMATION_MAP = {
-    "happy": (
-        "微笑+眨眼+眼神上扬",
-        "亮眼色彩、头部轻摆、手臂小幅打开",
-    ),
-    "confused": (
-        "斜视+眼神聚焦",
-        "停顿、轻微侧头、眼睛左右快速移动",
-    ),
-    "sad": (
-        "眼角下垂+闭眼",
-        "低亮度、轻微低头、手臂收回",
-    ),
-    "shy": (
-        "偏头+眼神回避",
-        "面部红晕特效、语音柔化、小动作微幅震颤",
-    ),
-    "excited": (
-        "眼神放大+频繁眨眼",
-        "快速摆头、双手前伸动作",
-    ),
-    "surprised": (
-        "抬头张眼",
-        "头部抬起，双手急速抬高",
-    ),
-}
-
-# Motion mapping for body actions
-# Body action mapping following the design specification
-ACTION_MAP = {
-    "happy": "nod±15°|sway±10°|hands_up10°",
-    "confused": "tilt_oscillate±10°|gaze_switch|hands_still",
-    "sad": "head_down_slow-15°|arms_arc_in",
-    "surprised": "head_up_eyes_wide|hands_raise>25°",
-    "shy": "idle_tremble",
-    "excited": "fast_head_shake|hands_forward",
-}
-
-# Prompt templates for the large language model
-# 大模型提示词模板
-STAGE_LLM_PROMPTS = {
-    "sprout": "You are in the sprout stage. Reply with babbling sounds.",
-    "enlighten": "You are in the enlighten stage. Imitate simple greetings.",
-    "resonate": "You are in the resonate stage. Respond with caring short sentences.",
-    "awaken": "You are in the awaken stage. Use memories to give proactive suggestions.",
-}
-
-OCEAN_LLM_PROMPTS = {
-    "openness": "curious",
-    "conscientiousness": "reliable",
-    "extraversion": "outgoing",
-    "agreeableness": "kind",
-    "neuroticism": "sensitive",
-}
-
-TOUCH_ZONE_PROMPTS = {
-    0: "The user touched your head.",
-    1: "The user stroked your back.",
-    2: "The user touched your chest.",
-}
 
 
 @dataclass
@@ -208,9 +154,12 @@ class DialogueEngine:
         # Construct LLM prompt combining stage, personality and touch info
         touch_phrase = TOUCH_ZONE_PROMPTS.get(touch_zone, "") if touched else ""
         trait_phrase = ", ".join(OCEAN_LLM_PROMPTS.values())
+        trait_phrase_cn = "、".join(OCEAN_LLM_PROMPTS_CN.values())
+        stage_phrase = STAGE_LLM_PROMPTS.get(self.stage, "")
+        stage_phrase_cn = STAGE_LLM_PROMPTS_CN.get(self.stage, "")
         prompt = (
-            f"{STAGE_LLM_PROMPTS.get(self.stage, '')} "
-            f"Traits: {trait_phrase}. Style: {style}. "
+            f"{stage_phrase} {stage_phrase_cn} "
+            f"Traits: {trait_phrase} ({trait_phrase_cn}). Style: {style}. "
             f"{touch_phrase} Past: {past_summary}. User: {user_text}"
         )
 
