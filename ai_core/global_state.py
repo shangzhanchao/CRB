@@ -8,13 +8,24 @@
 from __future__ import annotations
 
 import datetime
+import logging
 
 # use timezone-aware UTC timestamps
 import wave
 
-INTERACTION_COUNT = 0  # 总交互次数
+from .constants import (
+    DEFAULT_GROWTH_STAGE,
+    INITIAL_INTERACTIONS,
+    INITIAL_AUDIO_SECONDS,
+    LOG_LEVEL,
+)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+
+INTERACTION_COUNT = INITIAL_INTERACTIONS  # 总交互次数
 START_TIME = datetime.datetime.now(datetime.timezone.utc)  # 系统启动时间
-AUDIO_DATA_SECONDS = 0.0  # 累计语音时长（秒）
+AUDIO_DATA_SECONDS = INITIAL_AUDIO_SECONDS  # 累计语音时长（秒）
 
 
 def increment() -> int:
@@ -25,6 +36,7 @@ def increment() -> int:
 
     global INTERACTION_COUNT
     INTERACTION_COUNT += 1
+    logger.debug("Interaction count incremented to %s", INTERACTION_COUNT)
     return INTERACTION_COUNT
 
 
@@ -40,6 +52,7 @@ def add_audio_duration(path: str) -> float:
             AUDIO_DATA_SECONDS += wf.getnframes() / float(wf.getframerate())
     except Exception:  # pragma: no cover - unreadable file
         pass
+    logger.debug("Total audio seconds: %s", AUDIO_DATA_SECONDS)
     return AUDIO_DATA_SECONDS
 
 
@@ -60,12 +73,19 @@ def get_growth_stage() -> str:
     阶段，阶段值用于控制对话引擎的表现。"""
 
     days = days_since_start()
+    if INTERACTION_COUNT == INITIAL_INTERACTIONS and AUDIO_DATA_SECONDS == INITIAL_AUDIO_SECONDS:
+        logger.debug("Using default growth stage: %s", DEFAULT_GROWTH_STAGE)
+        return DEFAULT_GROWTH_STAGE
     if days < 3 or INTERACTION_COUNT < 5 or AUDIO_DATA_SECONDS < 60:
+        logger.debug("Growth stage sprout")
         return "sprout"  # 萌芽期
     if days < 10 or INTERACTION_COUNT < 20 or AUDIO_DATA_SECONDS < 300:
+        logger.debug("Growth stage enlighten")
         return "enlighten"  # 启蒙期
     if days < 30 or INTERACTION_COUNT < 50 or AUDIO_DATA_SECONDS < 900:
+        logger.debug("Growth stage resonate")
         return "resonate"  # 共鸣期
+    logger.debug("Growth stage awaken")
     return "awaken"  # 觉醒期
 
 
@@ -76,6 +96,7 @@ def reset() -> None:
     系统时回到初始状态。"""
 
     global INTERACTION_COUNT, AUDIO_DATA_SECONDS, START_TIME
-    INTERACTION_COUNT = 0
-    AUDIO_DATA_SECONDS = 0.0
+    INTERACTION_COUNT = INITIAL_INTERACTIONS
+    AUDIO_DATA_SECONDS = INITIAL_AUDIO_SECONDS
     START_TIME = datetime.datetime.now(datetime.timezone.utc)
+    logger.debug("Global state reset")
