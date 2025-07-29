@@ -11,7 +11,7 @@ IntelligentCore -> 调度情绪识别和对话生成
 from dataclasses import dataclass
 from typing import Optional
 
-from .dialogue_engine import DialogueEngine
+from .dialogue_engine import DialogueEngine, DialogueResponse
 from .emotion_perception import (
     EmotionPerception,
     DEFAULT_AUDIO_PATH,
@@ -57,10 +57,11 @@ class IntelligentCore:
         self.dialogue = dialogue or DialogueEngine()         # 对话系统
         self.emotion = emotion or EmotionPerception()        # 情绪识别系统
 
-    def process(self, user: UserInput) -> str:
-        """Process user input and generate a response.
+    def process(self, user: UserInput) -> DialogueResponse:
+        """Process user input through the full pipeline.
 
-        处理用户输入并生成回应。
+        处理用户输入，按“语音 → 情绪识别 → 模型反馈 → 性格成长 → \
+        对话生成”的流程返回结果。
 
         Parameters
         ----------

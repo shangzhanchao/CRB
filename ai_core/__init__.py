@@ -21,7 +21,7 @@ from .emotion_perception import (
     DEFAULT_AUDIO_PATH,
     DEFAULT_IMAGE_PATH,
 )
-from .dialogue_engine import DialogueEngine
+from .dialogue_engine import DialogueEngine, DialogueResponse
 from .intelligent_core import IntelligentCore, UserInput
 from . import global_state
 from .global_state import increment, reset
@@ -34,6 +34,7 @@ __all__ = [
     "DEFAULT_AUDIO_PATH",
     "DEFAULT_IMAGE_PATH",
     "DialogueEngine",
+    "DialogueResponse",
     "IntelligentCore",
     "UserInput",
     "increment",

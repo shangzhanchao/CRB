@@ -7,7 +7,8 @@ class TestDialogueEngine(unittest.TestCase):
         engine = DialogueEngine()
         text = 'Hello'
         resp = engine.generate_response(text, 'praise', user_id='user1', touched=True)
-        self.assertIn('You said: Hello', resp)
+        self.assertIn('You said: Hello', resp.text)
+        self.assertEqual(resp.action, 'hug')
         self.assertGreater(len(engine.memory.records), 0)
 
 if __name__ == '__main__':

@@ -24,7 +24,8 @@ def main() -> None:
             touched=touch,
         )
         reply = core.process(user)
-        print("AI:", reply)
+        print("AI:", reply.text)
+        print("Voice style:", reply.voice, "Action:", reply.action, "Expression:", reply.expression)
 
 
 if __name__ == "__main__":

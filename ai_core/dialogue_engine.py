@@ -7,12 +7,26 @@ DialogueEngine -> 负责根据人格与记忆生成回复
 ```
 """
 
+from dataclasses import dataclass
 from typing import Optional
 
 from . import global_state
 
 from .personality_engine import PersonalityEngine
 from .semantic_memory import SemanticMemory
+
+
+@dataclass
+class DialogueResponse:
+    """Structured output of the dialogue engine.
+
+    对话引擎生成的结构化回应，包括文本、语音风格、动作和表情。
+    """
+
+    text: str
+    voice: str
+    action: str
+    expression: str
 
 
 class DialogueEngine:
@@ -57,7 +71,7 @@ class DialogueEngine:
         mood_tag: str = "neutral",
         user_id: str = "unknown",
         touched: bool = False,
-    ) -> str:
+    ) -> DialogueResponse:
         """Generate an AI reply based on memory and personality.
 
         根据记忆和人格状态生成回答。
@@ -97,4 +111,18 @@ class DialogueEngine:
 
         self.memory.add_memory(user_text, response, mood_tag, user_id, touched)
         # 记录本次对话
-        return response
+
+        expression = {
+            "happy": "smile",
+            "angry": "frown",
+            "calm": "neutral",
+        }.get(mood_tag, "neutral")
+
+        action = "hug" if touched else "idle"
+
+        return DialogueResponse(
+            text=response,
+            voice=style,
+            action=action,
+            expression=expression,
+        )

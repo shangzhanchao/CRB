@@ -33,11 +33,13 @@ ai_core/
 1. **EmotionPerception** reads audio and image inputs (`DEFAULT_AUDIO_PATH`,
    `DEFAULT_IMAGE_PATH`) and outputs a fused emotion tag.
 2. **DialogueEngine** uses `PersonalityEngine` and `SemanticMemory` to produce
-   responses while updating interaction stages.
-3. **IntelligentCore** orchestrates the pipeline: emotion perception → speaker
-   identification → memory query → personality update → response generation.
+   responses while updating interaction stages and returns structured
+   information for voice, action and facial expression.
+3. **IntelligentCore** orchestrates the pipeline: emotion recognition → model
+   feedback → personality growth → voice generation, storing each dialog in the
+   memory cloud.
 4. `global_state.INTERACTION_COUNT` tracks how many interactions have occurred
-   across the whole system.
+   across the whole system, shaping the personality tree over time.
 
 Parameters of each module can be customized if the default settings do not
 fit your scenario.
@@ -45,7 +47,7 @@ fit your scenario.
 ## 简要说明
 
 CECR 提供一系列用于构建 AI 陪伴机器人的 Python 模块，代码内含中英双语注释，方便理解和二次开发。
-其中示例算法使用哈希向量检索语义记忆，并根据文件名或音量等简单特征识别情绪，对话引擎会随着交互次数从模仿型逐步过渡到主动型。
+其中示例算法使用哈希向量检索语义记忆，并根据文件名或音量等简单特征识别情绪，对话引擎会随着交互次数从模仿型逐步过渡到主动型。触摸交互时，系统会给出声音、动作和表情反馈，持续更新“性格树”与“记忆云”。
 
 ## Usage
 

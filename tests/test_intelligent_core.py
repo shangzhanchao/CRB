@@ -7,8 +7,8 @@ class TestIntelligentCore(unittest.TestCase):
         core = IntelligentCore()
         user = UserInput(audio_path='user1.wav', image_path='face.png', text='Hi')
         reply = core.process(user)
-        self.assertIsInstance(reply, str)
-        self.assertIn('Hi', reply)
+        self.assertIsInstance(reply.text, str)
+        self.assertIn('Hi', reply.text)
         self.assertEqual(global_state.INTERACTION_COUNT, 1)
 
 if __name__ == '__main__':
