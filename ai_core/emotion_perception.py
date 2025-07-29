@@ -11,6 +11,7 @@ EmotionPerception -> 识别语音与图像情绪并融合
 import os
 import wave
 import audioop
+import logging
 from dataclasses import dataclass
 
 
@@ -34,8 +35,10 @@ class EmotionState:
         return self.from_voice or self.from_face
 
 
-DEFAULT_AUDIO_PATH = "voice.wav"  # 演示用的音频文件路径
-DEFAULT_IMAGE_PATH = "face.png"   # 演示用的图像文件路径
+from .constants import DEFAULT_AUDIO_PATH, DEFAULT_IMAGE_PATH, LOG_LEVEL
+
+logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 
 
 class EmotionPerception:
@@ -67,11 +70,13 @@ class EmotionPerception:
 
         根据音频文件或远程声纹服务识别说话者身份。
         """
+        logger.debug("Recognizing identity from %s", audio_path)
         if self.voiceprint_url:
             from .service_clients import call_voiceprint
 
             uid = call_voiceprint(audio_path, self.voiceprint_url)
             if uid:
+                logger.info("Voiceprint matched user %s", uid)
                 return uid
         name = os.path.basename(audio_path)
         user_id = os.path.splitext(name)[0]
@@ -89,6 +94,7 @@ class EmotionPerception:
             demo purposes.  音频文件路径默认为
             :data:`DEFAULT_AUDIO_PATH`。
         """
+        logger.debug("Recognizing emotion from voice file %s", audio_path)
         try:
             with wave.open(audio_path, "rb") as wf:
                 frames = wf.readframes(wf.getnframes())
@@ -119,6 +125,7 @@ class EmotionPerception:
             simplify testing.  人脸图片路径默认为
             :data:`DEFAULT_IMAGE_PATH`。
         """
+        logger.debug("Recognizing emotion from face image %s", image_path)
         name = os.path.basename(image_path).lower()
         if "angry" in name:
             return "angry"
@@ -143,6 +150,9 @@ class EmotionPerception:
         image_path: str, optional
             Face image path. Default :data:`DEFAULT_IMAGE_PATH`.
         """
+        logger.info("Perceiving emotion from %s and %s", audio_path, image_path)
         voice_emotion = self.recognize_from_voice(audio_path)
         face_emotion = self.recognize_from_face(image_path)
-        return EmotionState(from_voice=voice_emotion, from_face=face_emotion)  # 返回融合后的情绪状态
+        state = EmotionState(from_voice=voice_emotion, from_face=face_emotion)
+        logger.debug("Emotion perceived: %s", state)
+        return state  # 返回融合后的情绪状态
