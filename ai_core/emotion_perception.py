@@ -35,7 +35,13 @@ class EmotionState:
         return self.from_voice or self.from_face
 
 
-from .constants import DEFAULT_AUDIO_PATH, DEFAULT_IMAGE_PATH, LOG_LEVEL
+from .constants import (
+    DEFAULT_AUDIO_PATH,
+    DEFAULT_IMAGE_PATH,
+    LOG_LEVEL,
+    DEFAULT_RMS_ANGRY,
+    DEFAULT_RMS_CALM,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -47,7 +53,12 @@ class EmotionPerception:
     简易多模态情绪识别系统示例。
     """
 
-    def __init__(self, rms_angry: int = 5000, rms_calm: int = 1000, voiceprint_url: str | None = None) -> None:
+    def __init__(
+        self,
+        rms_angry: int = DEFAULT_RMS_ANGRY,
+        rms_calm: int = DEFAULT_RMS_CALM,
+        voiceprint_url: str | None = None,
+    ) -> None:
         """Set up any required models.
 
         初始化情绪识别模型或资源。
@@ -55,11 +66,15 @@ class EmotionPerception:
         Parameters
         ----------
         rms_angry: int, optional
-            Threshold RMS value above which audio is considered angry.
-            音频均方根超过该值则判断为 "angry"，默认 5000。
+            Threshold RMS value above which audio is considered angry. Defaults
+            to :data:`DEFAULT_RMS_ANGRY`.
+            音频均方根超过该值则判断为 "angry"，默认值为
+            :data:`DEFAULT_RMS_ANGRY`。
         rms_calm: int, optional
-            Threshold RMS below which audio is considered calm.
-            音频均方根低于该值则判断为 "calm"，默认 1000。
+            Threshold RMS below which audio is considered calm. Defaults to
+            :data:`DEFAULT_RMS_CALM`.
+            音频均方根低于该值则判断为 "calm"，默认值为
+            :data:`DEFAULT_RMS_CALM`。
         """
         self.rms_angry = rms_angry
         self.rms_calm = rms_calm
