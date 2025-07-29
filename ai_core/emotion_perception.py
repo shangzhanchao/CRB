@@ -61,6 +61,15 @@ class EmotionPerception:
         self.rms_angry = rms_angry
         self.rms_calm = rms_calm
 
+    def recognize_identity(self, audio_path: str = DEFAULT_AUDIO_PATH) -> str:
+        """Recognize speaker identity from voice.
+
+        根据音频文件名等信息识别说话者身份。
+        """
+        name = os.path.basename(audio_path)
+        user_id = os.path.splitext(name)[0]
+        return user_id or "unknown"
+
     def recognize_from_voice(self, audio_path: str = DEFAULT_AUDIO_PATH) -> str:
         """Recognize emotion from audio.
 

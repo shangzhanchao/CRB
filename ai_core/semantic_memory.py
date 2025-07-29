@@ -74,6 +74,8 @@ class SemanticMemory:
         user_text: str,
         ai_response: str,
         mood_tag: str = "neutral",
+        user_id: str = "unknown",
+        touched: bool = False,
     ) -> None:
         """Add a conversation record into memory.
 
@@ -96,13 +98,17 @@ class SemanticMemory:
             "user_text": user_text,
             "ai_response": ai_response,
             "mood_tag": mood_tag,
+            "user_id": user_id,
+            "touched": touched,
             "topic_vector": vec,
         }
         self.records.append(record)
         if self.index is not None and np is not None:
             self.index.add(np.expand_dims(np.array(vec, dtype="float32"), 0))
 
-    def query_memory(self, prompt: str, top_k: int = 3) -> List[Dict[str, Any]]:
+    def query_memory(
+        self, prompt: str, top_k: int = 3, user_id: str | None = None
+    ) -> List[Dict[str, Any]]:
         """Return most relevant past interactions for the prompt.
 
         根据提示查询最相关的历史对话。
@@ -113,19 +119,25 @@ class SemanticMemory:
             Query text used for retrieving memories.
         top_k: int, optional
             Number of records to return. 默认返回 3 条记录。
+        user_id: str | None, optional
+            If provided, filter memories belonging to this user.
+            如提供该参数，则只返回该用户的历史记录。
         """
         query_vec = self._embed(prompt)
-        if self.index is not None and np is not None and len(self.records) > 0:
+        candidates = (
+            [r for r in self.records if user_id is None or r.get("user_id") == user_id]
+        )
+        if self.index is not None and np is not None and len(candidates) > 0:
             distances, indices = self.index.search(
                 np.expand_dims(np.array(query_vec, dtype="float32"), 0), top_k
             )
-            result = [self.records[i] for i in indices[0] if i < len(self.records)]
+            result = [candidates[i] for i in indices[0] if i < len(candidates)]
             return result
         # fallback linear search
         # 回退到线性搜索
         def distance(a, b):
             return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5  # 欧氏距离
 
-        scores = [distance(r["topic_vector"], query_vec) for r in self.records]
+        scores = [distance(r["topic_vector"], query_vec) for r in candidates]
         top_indices = sorted(range(len(scores)), key=lambda i: scores[i])[:top_k]
-        return [self.records[i] for i in top_indices]  # 返回按距离排序的结果
+        return [candidates[i] for i in top_indices]  # 返回按距离排序的结果

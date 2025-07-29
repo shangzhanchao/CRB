@@ -25,6 +25,7 @@ ai_core/
   emotion_perception.py - 声音与视觉情绪识别
   dialogue_engine.py    - 成长式对话生成
   intelligent_core.py   - 子模块调度与总入口
+  global_state.py       - 全局交互计数器
 ```
 
 ## Architecture Overview
@@ -33,8 +34,10 @@ ai_core/
    `DEFAULT_IMAGE_PATH`) and outputs a fused emotion tag.
 2. **DialogueEngine** uses `PersonalityEngine` and `SemanticMemory` to produce
    responses while updating interaction stages.
-3. **IntelligentCore** orchestrates the pipeline: emotion perception → memory
-   query → personality update → response generation.
+3. **IntelligentCore** orchestrates the pipeline: emotion perception → speaker
+   identification → memory query → personality update → response generation.
+4. `global_state.INTERACTION_COUNT` tracks how many interactions have occurred
+   across the whole system.
 
 Parameters of each module can be customized if the default settings do not
 fit your scenario.
@@ -47,11 +50,13 @@ CECR 提供一系列用于构建 AI 陪伴机器人的 Python 模块，代码内
 ## Usage
 
 Run `python demo.py` and start typing messages. The demo shows how the modules
-work together to produce responses. Default demo files `voice.wav` and
-`face.png` are used when no specific paths are provided. Type `quit` to exit.
+work together. Voice file names encode the speaker ID and each call updates the
+global interaction counter. Default demo files `voice.wav` and `face.png` are
+used when no specific paths are provided. Type `quit` to exit.
 
 使用方法：运行 `python demo.py`，输入内容即可与示例系统交互，输入 `quit` 结束。
 如未指定语音或图像文件，系统将使用默认的 `voice.wav` 与 `face.png` 进行演示。
+当 `UserInput.touched` 为 True 时，系统会根据触摸行为调整人格向量。
 
 ## Testing
 

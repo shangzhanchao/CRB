@@ -23,6 +23,8 @@ from .emotion_perception import (
 )
 from .dialogue_engine import DialogueEngine
 from .intelligent_core import IntelligentCore, UserInput
+from . import global_state
+from .global_state import increment, reset
 
 __all__ = [
     "PersonalityEngine",
@@ -34,4 +36,7 @@ __all__ = [
     "DialogueEngine",
     "IntelligentCore",
     "UserInput",
+    "increment",
+    "reset",
+    "global_state",
 ]

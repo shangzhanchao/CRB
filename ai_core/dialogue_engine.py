@@ -9,6 +9,8 @@ DialogueEngine -> 负责根据人格与记忆生成回复
 
 from typing import Optional
 
+from . import global_state
+
 from .personality_engine import PersonalityEngine
 from .semantic_memory import SemanticMemory
 
@@ -46,11 +48,16 @@ class DialogueEngine:
         self.personality = personality or PersonalityEngine()
         self.memory = memory or SemanticMemory()
         self.stage = "cold_start"            # 当前对话阶段
-        self.counter = 0                      # 交互计数器
         self.cold_start_threshold = cold_start_threshold  # 冷启动阈值
         self.active_threshold = active_threshold          # 主动阶段阈值
 
-    def generate_response(self, user_text: str, mood_tag: str = "neutral") -> str:
+    def generate_response(
+        self,
+        user_text: str,
+        mood_tag: str = "neutral",
+        user_id: str = "unknown",
+        touched: bool = False,
+    ) -> str:
         """Generate an AI reply based on memory and personality.
 
         根据记忆和人格状态生成回答。
@@ -66,14 +73,16 @@ class DialogueEngine:
         # update personality from mood_tag as behavior
         # 根据情绪标签更新人格
         self.personality.update(mood_tag)
-        self.counter += 1
-        if self.stage == "cold_start" and self.counter >= self.cold_start_threshold:
+        if touched:
+            self.personality.update("touch")
+        counter = global_state.INTERACTION_COUNT
+        if self.stage == "cold_start" and counter >= self.cold_start_threshold:
             self.stage = "learning"  # 进入学习阶段
-        if self.stage == "learning" and self.counter >= self.active_threshold:
+        if self.stage == "learning" and counter >= self.active_threshold:
             self.stage = "active"    # 进入主动阶段
 
         style = self.personality.get_personality_style()
-        past = self.memory.query_memory(user_text)
+        past = self.memory.query_memory(user_text, user_id=user_id)
         past_summary = " ".join([p["ai_response"] for p in past])  # 简单拼接历史回复
 
         if self.stage == "cold_start":
@@ -86,5 +95,6 @@ class DialogueEngine:
         else:
             response = f"[{style}] Based on our chats: {past_summary} | {user_text}"
 
-        self.memory.add_memory(user_text, response, mood_tag)  # 记录本次对话
+        self.memory.add_memory(user_text, response, mood_tag, user_id, touched)
+        # 记录本次对话
         return response

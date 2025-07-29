@@ -28,6 +28,8 @@ class UserInput:
     audio_path: str = DEFAULT_AUDIO_PATH  # default demo audio 文件路径
     image_path: str = DEFAULT_IMAGE_PATH  # default demo image 图片路径
     text: str = ""                 # user input text 用户文本内容
+    user_id: str = "unknown"       # 通过声纹识别得到的身份标识
+    touched: bool = False          # 是否存在抚摸传感器交互
 
 
 class IntelligentCore:
@@ -68,5 +70,14 @@ class IntelligentCore:
         """
         emotion_state = self.emotion.perceive(user.audio_path, user.image_path)  # 情绪识别
         mood = emotion_state.overall()  # 综合情绪结果
-        response = self.dialogue.generate_response(user.text, mood_tag=mood)  # 生成回复
+        user_id = self.emotion.recognize_identity(user.audio_path)  # 声纹识别身份
+        user.user_id = user_id
+        from . import global_state
+        global_state.increment()  # 更新全局交互计数
+        response = self.dialogue.generate_response(
+            user.text,
+            mood_tag=mood,
+            user_id=user_id,
+            touched=user.touched,
+        )  # 生成回复
         return response
