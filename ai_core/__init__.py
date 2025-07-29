@@ -19,52 +19,56 @@ from .emotion_perception import EmotionPerception, EmotionState
 from .dialogue_engine import DialogueEngine, DialogueResponse
 from .intelligent_core import IntelligentCore, UserInput
 from .service_clients import call_asr, call_tts, call_llm, call_voiceprint
+# Constants shared across modules. 统一的默认常量
 from .constants import (
-    DEFAULT_TTS_URL,
-    DEFAULT_ASR_URL,
-    DEFAULT_LLM_URL,
-    DEFAULT_VOICEPRINT_URL,
-    DEFAULT_AUDIO_PATH,
-    DEFAULT_IMAGE_PATH,
-    DEFAULT_GROWTH_STAGE,
-    DEFAULT_PERSONALITY_VECTOR,
+    DEFAULT_TTS_URL,  # 默认 TTS 服务地址
+    DEFAULT_ASR_URL,  # 默认 ASR 服务地址
+    DEFAULT_LLM_URL,  # 默认大模型服务地址
+    DEFAULT_VOICEPRINT_URL,  # 默认声纹识别服务地址
+    DEFAULT_AUDIO_PATH,  # 演示音频文件
+    DEFAULT_IMAGE_PATH,  # 演示图像文件
+    DEFAULT_GROWTH_STAGE,  # 默认成长阶段
+    DEFAULT_PERSONALITY_VECTOR,  # 默认人格向量
 )
+# Global metrics utilities 全局统计相关工具
 from . import global_state
 from .global_state import (
-    increment,
-    reset,
-    get_growth_stage,
-    add_audio_duration,
-    days_since_start,
-    AUDIO_DATA_SECONDS,
+    increment,  # 递增交互计数
+    reset,  # 重置全局状态
+    get_growth_stage,  # 获取成长阶段
+    add_audio_duration,  # 累加语音数据时长
+    days_since_start,  # 获取启动以来的天数
+    AUDIO_DATA_SECONDS,  # 当前累计语音时长
 )
 
+# Re-export commonly used symbols for convenience 便于外部使用
+
 __all__ = [
-    "PersonalityEngine",
-    "SemanticMemory",
-    "EmotionPerception",
-    "EmotionState",
-    "DEFAULT_AUDIO_PATH",
-    "DEFAULT_IMAGE_PATH",
-    "DialogueEngine",
-    "DialogueResponse",
-    "IntelligentCore",
-    "UserInput",
-    "call_asr",
-    "call_tts",
-    "call_llm",
-    "call_voiceprint",
-    "DEFAULT_TTS_URL",
-    "DEFAULT_ASR_URL",
-    "DEFAULT_LLM_URL",
-    "DEFAULT_VOICEPRINT_URL",
-    "increment",
-    "reset",
-    "get_growth_stage",
-    "add_audio_duration",
-    "days_since_start",
-    "AUDIO_DATA_SECONDS",
-    "global_state",
-    "DEFAULT_GROWTH_STAGE",
-    "DEFAULT_PERSONALITY_VECTOR",
+    "PersonalityEngine",      # 人格成长引擎
+    "SemanticMemory",        # 语义记忆系统
+    "EmotionPerception",     # 情绪识别模块
+    "EmotionState",          # 情绪状态数据类
+    "DEFAULT_AUDIO_PATH",    # 默认音频路径
+    "DEFAULT_IMAGE_PATH",    # 默认图像路径
+    "DialogueEngine",        # 对话生成引擎
+    "DialogueResponse",      # 对话输出结构
+    "IntelligentCore",       # 系统调度核心
+    "UserInput",             # 用户输入数据类
+    "call_asr",              # 调用语音识别服务
+    "call_tts",              # 调用语音合成服务
+    "call_llm",              # 调用大模型服务
+    "call_voiceprint",       # 调用声纹识别服务
+    "DEFAULT_TTS_URL",       # TTS 服务默认地址
+    "DEFAULT_ASR_URL",       # ASR 服务默认地址
+    "DEFAULT_LLM_URL",       # LLM 服务默认地址
+    "DEFAULT_VOICEPRINT_URL",# 声纹识别服务默认地址
+    "increment",             # 交互计数加一
+    "reset",                 # 重置全局状态
+    "get_growth_stage",      # 获取成长阶段
+    "add_audio_duration",    # 增加音频时长
+    "days_since_start",      # 运行天数
+    "AUDIO_DATA_SECONDS",    # 累计音频秒数
+    "global_state",          # 全局状态模块
+    "DEFAULT_GROWTH_STAGE",  # 默认成长阶段
+    "DEFAULT_PERSONALITY_VECTOR",  # 默认人格向量
 ]
