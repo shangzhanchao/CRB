@@ -16,10 +16,12 @@ from typing import Any, Dict, Optional
 
 # Default service endpoints. These can be overridden via parameters or
 # environment variables.
-DEFAULT_TTS_URL = os.environ.get("TTS_URL", "https://tts.e-inv.cn")
-DEFAULT_ASR_URL = os.environ.get("ASR_URL", "https://asr.e-inv.cn")
-DEFAULT_LLM_URL = os.environ.get("LLM_URL", "https://llm.e-inv.cn")
-DEFAULT_VOICEPRINT_URL = os.environ.get("VOICEPRINT_URL", "https://voiceprint.e-inv.cn")
+DEFAULT_TTS_URL = os.environ.get("TTS_URL", "https://tts.szc.com")
+DEFAULT_ASR_URL = os.environ.get("ASR_URL", "https://asr.szc.com")
+DEFAULT_LLM_URL = os.environ.get("LLM_URL", "https://llm.szc.com")
+DEFAULT_VOICEPRINT_URL = os.environ.get(
+    "VOICEPRINT_URL", "https://voiceprint.szc.com"
+)
 
 
 def _post(url: str, payload: Dict[str, Any], timeout: int = 5) -> Optional[Dict[str, Any]]:
