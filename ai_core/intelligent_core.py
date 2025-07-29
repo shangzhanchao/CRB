@@ -36,6 +36,7 @@ class UserInput:
     text: str = ""                 # user input text 用户文本内容
     user_id: str = "unknown"       # 通过声纹识别得到的身份标识
     touched: bool = False          # 是否存在抚摸传感器交互
+    touch_zone: int | None = None  # 触摸区域编号，可选
 
 
 class IntelligentCore:
@@ -85,8 +86,9 @@ class IntelligentCore:
         Parameters
         ----------
         user: UserInput
-            Container holding audio path, image path and text. If omitted,
-            defaults defined in :class:`UserInput` are used.
+            Container holding audio path, image path, text and touch
+            information. If omitted, defaults defined in
+            :class:`UserInput` are used.
         """
         # 1. optional speech recognition
         if not user.text and self.asr_url:
@@ -111,6 +113,7 @@ class IntelligentCore:
             mood_tag=mood,
             user_id=user_id,
             touched=user.touched,
+            touch_zone=user.touch_zone,
         )  # 生成回复
 
         # response contains text, action, expression and optional audio URL
