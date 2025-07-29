@@ -12,16 +12,19 @@ import json
 import os
 import urllib.request
 import urllib.error
+import logging
 from typing import Any, Dict, Optional
 
-# Default service endpoints. These can be overridden via parameters or
-# environment variables.
-DEFAULT_TTS_URL = os.environ.get("TTS_URL", "https://tts.szc.com")
-DEFAULT_ASR_URL = os.environ.get("ASR_URL", "https://asr.szc.com")
-DEFAULT_LLM_URL = os.environ.get("LLM_URL", "https://llm.szc.com")
-DEFAULT_VOICEPRINT_URL = os.environ.get(
-    "VOICEPRINT_URL", "https://voiceprint.szc.com"
+from .constants import (
+    DEFAULT_TTS_URL,
+    DEFAULT_ASR_URL,
+    DEFAULT_LLM_URL,
+    DEFAULT_VOICEPRINT_URL,
+    LOG_LEVEL,
 )
+
+logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 
 
 def _post(url: str, payload: Dict[str, Any], timeout: int = 5) -> Optional[Dict[str, Any]]:
@@ -36,8 +39,10 @@ def _post(url: str, payload: Dict[str, Any], timeout: int = 5) -> Optional[Dict[
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             text = resp.read().decode("utf-8")
+            logger.debug("%s response: %s", url, text)
             return json.loads(text)
-    except Exception:
+    except Exception as exc:  # pragma: no cover - network error
+        logger.warning("Request to %s failed: %s", url, exc)
         return None
 
 
