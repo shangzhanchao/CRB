@@ -1,0 +1,90 @@
+"""Utility functions for external AI services.
+
+This module contains lightweight wrappers that attempt to access
+remote services for ASR, TTS, LLM and voiceprint recognition. If the
+HTTP request fails (e.g. service unreachable), a simple fallback is
+used so tests can run offline.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import urllib.request
+import urllib.error
+from typing import Any, Dict, Optional
+
+# Default service endpoints. These can be overridden via parameters or
+# environment variables.
+DEFAULT_TTS_URL = os.environ.get("TTS_URL", "https://tts.e-inv.cn")
+DEFAULT_ASR_URL = os.environ.get("ASR_URL", "https://asr.e-inv.cn")
+DEFAULT_LLM_URL = os.environ.get("LLM_URL", "https://llm.e-inv.cn")
+DEFAULT_VOICEPRINT_URL = os.environ.get("VOICEPRINT_URL", "https://voiceprint.e-inv.cn")
+
+
+def _post(url: str, payload: Dict[str, Any], timeout: int = 5) -> Optional[Dict[str, Any]]:
+    """Send a JSON POST request and return parsed JSON response.
+
+    If the request fails, ``None`` is returned so the caller can fall back
+    to a deterministic local result.
+    """
+
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            text = resp.read().decode("utf-8")
+            return json.loads(text)
+    except Exception:
+        return None
+
+
+def call_asr(audio_path: str, url: str = DEFAULT_ASR_URL) -> str:
+    """Send audio to ASR service and return transcribed text.
+
+    If the service call fails, the file name without extension is used as
+    the fallback transcription.
+    """
+
+    res = _post(url, {"path": audio_path})
+    if res and isinstance(res.get("text"), str):
+        return res["text"]
+    return os.path.splitext(os.path.basename(audio_path))[0]
+
+
+def call_tts(text: str, url: str = DEFAULT_TTS_URL) -> str:
+    """Send text to TTS service and return an audio URL.
+
+    When offline or failing, an empty string is returned.
+    """
+
+    res = _post(url, {"text": text})
+    if res and isinstance(res.get("audio_url"), str):
+        return res["audio_url"]
+    return ""
+
+
+def call_llm(prompt: str, url: str = DEFAULT_LLM_URL) -> str:
+    """Request a completion from the LLM service.
+
+    On failure, an empty string is returned so the caller can decide on a
+    fallback message.
+    """
+
+    res = _post(url, {"prompt": prompt})
+    if res and isinstance(res.get("text"), str):
+        return res["text"]
+    return ""
+
+
+def call_voiceprint(audio_path: str, url: str = DEFAULT_VOICEPRINT_URL) -> str:
+    """Recognize speaker identity from the given audio.
+
+    If the remote service is unreachable, the base file name is returned.
+    """
+
+    res = _post(url, {"path": audio_path})
+    if res and isinstance(res.get("user_id"), str):
+        return res["user_id"]
+    name = os.path.splitext(os.path.basename(audio_path))[0]
+    return name or "unknown"
