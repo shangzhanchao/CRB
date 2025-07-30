@@ -28,7 +28,9 @@ starting points for a more advanced system.
 At a high level, the companion robot receives **voice**, **touch** and
 **camera** inputs, which the cognitive core converts into emotions and semantic
 context. A large language model then drives the reply generation, applying
-growth- and personality-specific prompts. The result is text that can be
+specially designed prompts based on the *growth stage* and personality traits.
+The stage progresses from **sprout → enlighten → resonate → awaken** as the
+robot interacts more with the user. The result is text that can be
 synthesized to speech, accompanied by an action and facial expression.
 
 简要而言，陪伴机器人会接受语音、触摸与摄像头画面等输入，智能大脑把它们转化为情绪
@@ -53,7 +55,6 @@ the system can fully function:
 - **TTS** (`tts.szc.com`) – synthesize reply audio.
 
 外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。默认的 ``llm.szc.com`` 用于解释情绪和生成多模态回复，是系统核心依赖。
-
 
 Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL``, ``TTS_URL``, ``MEMORY_SAVE_URL`` and ``MEMORY_QUERY_URL``.
 
@@ -82,7 +83,8 @@ demo.py                - 命令行演示脚本
 The file `ai_core/constants.py` groups configuration values:
 - **Service endpoints**: ASR, TTS, LLM, voiceprint and memory URLs.
 - **Default files**: demo audio/image paths.
-- **Growth stage thresholds**: days, interaction counts and audio duration.
+- **Growth stage thresholds**: days, interaction counts and audio duration for each stage.
+- **Stage order**: `STAGE_ORDER` lists `sprout → enlighten → resonate → awaken`.
 - **Personality defaults**: initial OCEAN vector and behavior mapping.
 这些常量便于集中管理，可根据实际部署场景调整。
 ```
@@ -173,7 +175,6 @@ encode facial animation cues while actions describe body motions:
 | shy / 害羞 | 偏头、眼神回避 → 面部红晕、语音柔化、微幅震颤 | idle + subtle tremble |
 | excited / 兴奋 | 眼神放大、频繁眨眼 → 快速摆头、双手前伸动作 | 快速摇头, 手前伸 |
 | surprised / 惊讶 | 抬头张眼 → 头部抬起，双手急速抬高 | 抬头+双手抬高>25° |
-
 The mapping table below can be modified to fit different hardware capabilities.
 
 When the robot is touched, an additional action such as ``hug`` or ``pat`` is
