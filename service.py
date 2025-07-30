@@ -17,7 +17,7 @@ core = IntelligentCore()
 def handle_request(payload: Dict[str, Any]):
     """Process a JSON payload and return AI response dict.
 
-    处理 JSON 请求并返回包含文本、语音、动作和表情的结果。
+    处理 JSON 请求并返回包含文本、音频、动作和表情的结果。
     """
     robot_id = payload.get("robot_id", "")
     text = payload.get("text")
@@ -37,7 +37,6 @@ def handle_request(payload: Dict[str, Any]):
     reply = core.process(user)
     return {
         "text": reply.text,
-        "voice": reply.voice,
         "action": reply.action,
         "expression": reply.expression,
         "audio": reply.audio,
