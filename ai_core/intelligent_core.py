@@ -82,7 +82,11 @@ class IntelligentCore:
             Speaker identification service endpoint.
         """
         self.dialogue = dialogue or DialogueEngine(llm_url=llm_url, tts_url=tts_url)  # 对话系统
-        self.emotion = emotion or EmotionPerception(voiceprint_url=voiceprint_url)   # 情绪识别系统
+        self.emotion = emotion or EmotionPerception(
+            voiceprint_url=voiceprint_url,
+            memory=self.dialogue.memory,
+            personality=self.dialogue.personality,
+        )   # 情绪识别系统
         self.asr_url = asr_url
 
     def _resolve_paths(self, user: UserInput) -> Tuple[str, str]:
@@ -104,11 +108,17 @@ class IntelligentCore:
             user.text = ""
             logger.debug("No text input; defaulting to empty string")
 
-    def _perceive(self, audio_path: str, image_or_video: str) -> Tuple[str, str]:
+    def _perceive(self, audio_path: str, image_or_video: str, text: str) -> Tuple[str, str]:
         """Return (mood, user_id) from multimodal perception."""
-        emotion_state = self.emotion.perceive(audio_path, image_or_video)
-        mood = emotion_state.overall()
+
         user_id = self.emotion.recognize_identity(audio_path)
+        emotion_state = self.emotion.perceive(
+            audio_path,
+            image_or_video,
+            text=text,
+            user_id=user_id,
+        )
+        mood = emotion_state.overall(self.dialogue.personality)
         return mood, user_id
 
     def process(self, user: UserInput) -> DialogueResponse:
@@ -135,7 +145,7 @@ class IntelligentCore:
 
         # 2. emotion & identity perception
         img_or_video = user.video_path or image_path
-        mood, user_id = self._perceive(audio_path, img_or_video)
+        mood, user_id = self._perceive(audio_path, img_or_video, user.text)
         if not user_id or user_id == "unknown":
             # 声纹无法识别时创建新的访客身份
             user_id = f"guest_{global_state.INTERACTION_COUNT + 1}"
