@@ -28,7 +28,7 @@ from . import global_state
 
 from .personality_engine import PersonalityEngine
 from .semantic_memory import SemanticMemory
-from .service_clients import call_llm, call_tts
+from .service_api import call_llm, call_tts
 from .constants import (
     DEFAULT_GROWTH_STAGE,
     LOG_LEVEL,
@@ -50,14 +50,13 @@ logger.setLevel(LOG_LEVEL)
 class DialogueResponse:
     """Structured output of the dialogue engine.
 
-    对话引擎生成的结构化回应，包括文本、语音风格、动作和表情。
+    对话引擎生成的结构化回应，包括文本、音频、动作和表情。
     """
 
     text: str
-    voice: str
-    action: str
+    audio: str
+    action: list[str]
     expression: str
-    audio: str = ""
 
 
 class DialogueEngine:
@@ -185,11 +184,11 @@ class DialogueEngine:
         face_anim = FACE_ANIMATION_MAP.get(mood_key, ("neutral", ""))
         expression = f"{face_anim[0]} | {face_anim[1]}".strip()
 
-        action = ACTION_MAP.get(mood_key, "idle")
+        action = ACTION_MAP.get(mood_key, "idle").split("|")
         if touched:
             # append touch action detail
             zone_action = {0: "hug", 1: "pat", 2: "tickle"}.get(touch_zone, "hug")
-            action += f" + {zone_action}"
+            action.append(zone_action)
         logger.debug("Action: %s | Expression: %s", action, expression)
 
         # TTS generates an audio URL when service is provided
@@ -201,8 +200,7 @@ class DialogueEngine:
 
         return DialogueResponse(
             text=response,
-            voice=style,
+            audio=audio_url,
             action=action,
             expression=expression,
-            audio=audio_url,
         )
