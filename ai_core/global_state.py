@@ -17,11 +17,25 @@ from .constants import (
     DEFAULT_GROWTH_STAGE,
     INITIAL_INTERACTIONS,
     INITIAL_AUDIO_SECONDS,
+    STAGE_THRESHOLDS,  # 成长阶段阈值参数
     LOG_LEVEL,
+    ROBOT_ID_WHITELIST,  # 允许的机器人编号
 )
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
+
+
+
+def is_robot_allowed(robot_id: str) -> bool:
+    """Check if the robot ID is in the whitelist.
+
+    判断机器人编号是否在白名单 ``ROBOT_ID_WHITELIST`` 中。
+    """
+    allowed = robot_id in ROBOT_ID_WHITELIST
+    if not allowed:
+        logger.warning("Robot %s not in whitelist", robot_id)
+    return allowed
 
 INTERACTION_COUNT = INITIAL_INTERACTIONS  # 总交互次数
 START_TIME = datetime.datetime.now(datetime.timezone.utc)  # 系统启动时间
@@ -76,15 +90,22 @@ def get_growth_stage() -> str:
     if INTERACTION_COUNT == INITIAL_INTERACTIONS and AUDIO_DATA_SECONDS == INITIAL_AUDIO_SECONDS:
         logger.debug("Using default growth stage: %s", DEFAULT_GROWTH_STAGE)
         return DEFAULT_GROWTH_STAGE
-    if days < 3 or INTERACTION_COUNT < 5 or AUDIO_DATA_SECONDS < 60:
+
+    thr = STAGE_THRESHOLDS["sprout"]
+    if days < thr["days"] or INTERACTION_COUNT < thr["interactions"] or AUDIO_DATA_SECONDS < thr["audio_seconds"]:
         logger.debug("Growth stage sprout")
         return "sprout"  # 萌芽期
-    if days < 10 or INTERACTION_COUNT < 20 or AUDIO_DATA_SECONDS < 300:
+
+    thr = STAGE_THRESHOLDS["enlighten"]
+    if days < thr["days"] or INTERACTION_COUNT < thr["interactions"] or AUDIO_DATA_SECONDS < thr["audio_seconds"]:
         logger.debug("Growth stage enlighten")
         return "enlighten"  # 启蒙期
-    if days < 30 or INTERACTION_COUNT < 50 or AUDIO_DATA_SECONDS < 900:
+
+    thr = STAGE_THRESHOLDS["resonate"]
+    if days < thr["days"] or INTERACTION_COUNT < thr["interactions"] or AUDIO_DATA_SECONDS < thr["audio_seconds"]:
         logger.debug("Growth stage resonate")
         return "resonate"  # 共鸣期
+
     logger.debug("Growth stage awaken")
     return "awaken"  # 觉醒期
 
