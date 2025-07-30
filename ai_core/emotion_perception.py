@@ -1,6 +1,9 @@
 """Emotion perception module.
 
-文件结构：
+Combines voice, face and text analysis to derive the user's mood.
+情绪感知模块：综合语音、图像与文本信息判断用户当前的情绪状态。
+
+File structure 文件结构：
 
 ```
 EmotionState      -> 数据类，保存音频和图像情绪
@@ -18,6 +21,16 @@ import logging
 from dataclasses import dataclass
 from collections import Counter
 from typing import Optional
+
+try:  # optional deep models
+    from speechbrain.pretrained import EncoderClassifier  # type: ignore
+except Exception:  # pragma: no cover - library missing
+    EncoderClassifier = None
+
+try:
+    from fer import FER  # type: ignore
+except Exception:  # pragma: no cover - library missing
+    FER = None
 
 from .semantic_memory import SemanticMemory
 from .personality_engine import PersonalityEngine
@@ -82,9 +95,10 @@ logger.setLevel(LOG_LEVEL)
 
 
 class EmotionPerception:
-    """Placeholder multimodal emotion recognition system.
+    """Multimodal emotion recognition system.
 
-    简易多模态情绪识别系统示例。
+    简易多模态情绪识别系统示例，可输入音频、图像与文本并返回融合后的
+    :class:`EmotionState` 数据结构。
     """
 
     def __init__(
@@ -135,6 +149,26 @@ class EmotionPerception:
         self.personality = personality
         self.use_model = use_model
 
+        # Load optional deep models when requested
+        self.speech_model = None
+        self.face_model = None
+        if self.use_model:
+            if EncoderClassifier is not None:
+                try:  # type: ignore
+                    self.speech_model = EncoderClassifier.from_hparams(
+                        source="speechbrain/emotion-recognition-wav2vec2-IEMOCAP",
+                        savedir="pretrained_models/speech_emotion",
+                    )
+                except Exception as exc:  # pragma: no cover - download failure
+                    logger.warning("Speech emotion model load failed: %s", exc)
+                    self.speech_model = None
+            if FER is not None:
+                try:
+                    self.face_model = FER()
+                except Exception as exc:  # pragma: no cover
+                    logger.warning("Face model load failed: %s", exc)
+                    self.face_model = None
+
     def recognize_identity(self, audio_path: str = DEFAULT_AUDIO_PATH) -> str:
         """Recognize speaker identity from voice.
 
@@ -165,6 +199,13 @@ class EmotionPerception:
             :data:`DEFAULT_AUDIO_PATH`。
         """
         logger.debug("Recognizing emotion from voice file %s", audio_path)
+        if self.use_model and self.speech_model is not None:
+            try:
+                out_prob, score, index, text_lab = self.speech_model.classify_file(audio_path)  # type: ignore
+                if text_lab:
+                    return text_lab[0].lower()
+            except Exception as exc:  # pragma: no cover
+                logger.warning("Speech model failed: %s", exc)
         try:
             with wave.open(audio_path, "rb") as wf:
                 frames = wf.readframes(wf.getnframes())
@@ -174,8 +215,7 @@ class EmotionPerception:
             if rms < self.rms_calm:
                 return "calm"
         except Exception:
-            # file missing or unreadable 文件缺失或无法读取
-            pass
+            pass  # file missing or unreadable 文件缺失或无法读取
         name = os.path.basename(audio_path).lower()
         if "angry" in name:
             return "angry"
@@ -196,6 +236,16 @@ class EmotionPerception:
             :data:`DEFAULT_IMAGE_PATH`。
         """
         logger.debug("Recognizing emotion from face image %s", image_path)
+        if self.use_model and self.face_model is not None:
+            try:
+                import cv2  # type: ignore
+                img = cv2.imread(image_path)
+                if img is not None:
+                    emotion, score = self.face_model.top_emotion(img)  # type: ignore
+                    if emotion:
+                        return emotion.lower()
+            except Exception as exc:  # pragma: no cover
+                logger.warning("Face model failed: %s", exc)
         name = os.path.basename(image_path).lower()
         if "angry" in name:
             return "angry"
@@ -290,25 +340,38 @@ class EmotionPerception:
             image_path,
             text,
         )
-        if not self.llm_url:
-            logger.warning("LLM URL missing, falling back to simple mode")
-            return self._perceive_simple(audio_path, image_path, text, user_id)
-
-        prompt = MULTI_MODAL_EMOTION_PROMPT.format(
-            options=", ".join(EMOTION_STATES),
-            audio=audio_path,
-            image=image_path,
-            text=text,
-        )
-        result = call_llm(prompt, self.llm_url).strip().lower()
-        if result not in EMOTION_STATES:
-            logger.warning(
-                "Model returned unknown emotion '%s'; falling back to simple mode",
-                result,
+        # Prefer local deep models when available
+        if self.speech_model is not None or self.face_model is not None:
+            voice_emotion = self.recognize_from_voice(audio_path)
+            face_emotion = self.recognize_from_face(image_path)
+            text_emotion = self.recognize_from_text(text)
+            state = EmotionState(
+                from_voice=voice_emotion,
+                from_face=face_emotion,
+                from_text=text_emotion,
+                from_memory=self.memory.last_mood(user_id) if self.memory else None,
             )
+            result = state.overall(self.personality)
+            logger.debug("Emotion perceived via local models: %s", state)
+        elif self.llm_url:
+            prompt = MULTI_MODAL_EMOTION_PROMPT.format(
+                options=", ".join(EMOTION_STATES),
+                audio=audio_path,
+                image=image_path,
+                text=text,
+            )
+            result = call_llm(prompt, self.llm_url).strip().lower()
+            if result not in EMOTION_STATES:
+                logger.warning(
+                    "Model returned unknown emotion '%s'; falling back to simple mode",
+                    result,
+                )
+                return self._perceive_simple(audio_path, image_path, text, user_id)
+            state = EmotionState(result, result, result)
+        else:
+            logger.warning("No model available; falling back to simple mode")
             return self._perceive_simple(audio_path, image_path, text, user_id)
 
-        state = EmotionState(result, result, result)
         if self.memory is not None and user_id is not None:
             self.memory.add_memory(text, "", result, user_id)
         logger.debug("Emotion perceived (model): %s", state)
