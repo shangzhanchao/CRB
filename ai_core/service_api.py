@@ -20,6 +20,7 @@ from .constants import (
     DEFAULT_VOICEPRINT_URL,
     DEFAULT_MEMORY_SAVE_URL,
     DEFAULT_MEMORY_QUERY_URL,
+    LOCAL_MEMORY_PATH,
     LOG_LEVEL,
 )
 
@@ -89,22 +90,58 @@ def call_voiceprint(audio_path: str, url: str = DEFAULT_VOICEPRINT_URL) -> str:
     return name or "unknown"
 
 
-def call_memory_save(record: Dict[str, Any], url: str = DEFAULT_MEMORY_SAVE_URL) -> bool:
-    """Save a memory record via HTTP.
+def call_memory_save(
+    record: Dict[str, Any],
+    url: str = DEFAULT_MEMORY_SAVE_URL,
+    fallback_path: str = LOCAL_MEMORY_PATH,
+) -> bool:
+    """Save a memory record via HTTP with local fallback.
 
-    通过 HTTP 将记忆记录发送到远程服务。失败则返回 ``False``。
+    通过 HTTP 将记忆记录发送到远程服务，若失败则写入本地备份文件。
     """
-    prepared = {k: (v.isoformat() if isinstance(v, datetime.datetime) else v) for k, v in record.items()}
-    res = _post(url, prepared)
-    return bool(res and res.get("ok"))
+    prepared = {
+        k: (v.isoformat() if isinstance(v, datetime.datetime) else v)
+        for k, v in record.items()
+    }
+    res = _post(url, prepared) if url else None
+    if res and res.get("ok"):
+        return True
+    else:
+        logger.warning(
+            "Memory service unavailable, storing record locally at %s", fallback_path
+        )
+    try:
+        if os.path.exists(fallback_path):
+            with open(fallback_path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        else:
+            data = []
+        data.append(prepared)
+        with open(fallback_path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False)
+        logger.debug("Memory saved locally to %s", fallback_path)
+    except Exception as exc:  # pragma: no cover - 文件写入失败
+        logger.warning("Local memory save failed: %s", exc)
+    return False
 
 
-def call_memory_query(prompt: str, top_k: int = 3, url: str = DEFAULT_MEMORY_QUERY_URL) -> Optional[list[Dict[str, Any]]]:
-    """Query memory service for related records.
+def call_memory_query(
+    prompt: str,
+    top_k: int = 3,
+    url: str = DEFAULT_MEMORY_QUERY_URL,
+    fallback_path: str = LOCAL_MEMORY_PATH,
+) -> Optional[list[Dict[str, Any]]]:
+    """Query memory service with a local file fallback.
 
-    调用记忆查询服务以获取与 ``prompt`` 最相关的历史记录列表。
+    调用远程记忆查询服务，失败时从本地备份文件中检索相关记录。
     """
-    res = _post(url, {"text": prompt, "top_k": top_k})
+    res = _post(url, {"text": prompt, "top_k": top_k}) if url else None
     if res and isinstance(res.get("records"), list):
         return res["records"]
-    return None
+    try:
+        with open(fallback_path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except FileNotFoundError:
+        return None
+    hits = [r for r in data if prompt in r.get("user_text", "")]
+    return hits[:top_k]
