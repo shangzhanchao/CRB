@@ -1,6 +1,7 @@
 # CRB
 Companion Robot Brain
 # 陪伴机器人智能大脑
+
 *Companion Robot Intelligent Brain*
 
 The **Companion Robot Intelligent Brain** provides a set of Python modules for
@@ -53,6 +54,7 @@ the system can fully function:
 
 外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。默认的 ``llm.szc.com`` 用于解释情绪和生成多模态回复，是系统核心依赖。
 
+
 Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL``, ``TTS_URL``, ``MEMORY_SAVE_URL`` and ``MEMORY_QUERY_URL``.
 
 All modules emit informative logs controlled by ``LOG_LEVEL`` which defaults
@@ -73,7 +75,7 @@ ai_core/
   dialogue_engine.py    - 成长式对话生成
  intelligent_core.py   - 子模块调度与总入口
   global_state.py       - 全局交互计数与语音时长
-  service_clients.py    - 调用外部 ASR/LLM/TTS 服务的工具
+  service_api.py        - 调用外部 ASR/LLM/TTS 服务的工具
   constants.py          - 全局常量與默認值
 demo.py                - 命令行演示脚本
 ### Constants Overview
@@ -95,7 +97,7 @@ The file `ai_core/constants.py` groups configuration values:
    information for voice, action and facial expression.
 3. **IntelligentCore** orchestrates the pipeline: emotion recognition → model
    feedback → personality growth → voice generation, storing each dialog in the
-   Each step may call remote services defined in `service_clients.py`.
+   Each step may call remote services defined in `service_api.py`.
    memory cloud.
 4. `global_state.INTERACTION_COUNT` 和 `AUDIO_DATA_SECONDS` track how much the
    robot has interacted and how much speech data it has processed. These
@@ -171,6 +173,7 @@ encode facial animation cues while actions describe body motions:
 | shy / 害羞 | 偏头、眼神回避 → 面部红晕、语音柔化、微幅震颤 | idle + subtle tremble |
 | excited / 兴奋 | 眼神放大、频繁眨眼 → 快速摆头、双手前伸动作 | 快速摇头, 手前伸 |
 | surprised / 惊讶 | 抬头张眼 → 头部抬起，双手急速抬高 | 抬头+双手抬高>25° |
+
 The mapping table below can be modified to fit different hardware capabilities.
 
 When the robot is touched, an additional action such as ``hug`` or ``pat`` is
