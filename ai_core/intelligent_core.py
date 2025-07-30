@@ -15,7 +15,7 @@ growth to produce spoken replies, actions and facial expressions.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 import logging
 
 from .dialogue_engine import DialogueEngine, DialogueResponse
@@ -34,12 +34,15 @@ logger.setLevel(LOG_LEVEL)
 class UserInput:
     """Container for user-provided input paths and text.
 
-    用户提供的语音、图像路径及文本内容。
+    用户提供的语音、图像路径及文本内容。除 ``robot_id`` 外均可为空。
     """
-    audio_path: str = DEFAULT_AUDIO_PATH  # default demo audio 文件路径
-    image_path: str = DEFAULT_IMAGE_PATH  # default demo image 图片路径
-    text: str = ""                 # user input text 用户文本内容
-    user_id: str = "unknown"       # 通过声纹识别得到的身份标识
+
+    audio_path: str | None = None  # 路径可为空
+    image_path: str | None = None  # 图片路径可为空
+    video_path: str | None = None  # 视频路径可为空
+    text: str | None = None        # 文本内容可为空
+    robot_id: str = ""             # 机器人编号 (必填)
+    user_id: str | None = None     # 通过声纹识别得到的身份标识，可为空
     touched: bool = False          # 是否存在抚摸传感器交互
     touch_zone: int | None = None  # 触摸区域编号，可选
 
@@ -82,6 +85,32 @@ class IntelligentCore:
         self.emotion = emotion or EmotionPerception(voiceprint_url=voiceprint_url)   # 情绪识别系统
         self.asr_url = asr_url
 
+    def _resolve_paths(self, user: UserInput) -> Tuple[str, str]:
+        """Return audio and image paths with fallbacks."""
+        audio = user.audio_path or DEFAULT_AUDIO_PATH
+        image = user.image_path or DEFAULT_IMAGE_PATH
+        return audio, image
+
+    def _ensure_text(self, user: UserInput, audio_path: str) -> None:
+        """Fill ``user.text`` by ASR or empty string when missing."""
+        if user.text:
+            return
+        if self.asr_url:
+            from .service_clients import call_asr
+
+            user.text = call_asr(audio_path, self.asr_url)
+            logger.debug("ASR result: %s", user.text)
+        else:
+            user.text = ""
+            logger.debug("No text input; defaulting to empty string")
+
+    def _perceive(self, audio_path: str, image_or_video: str) -> Tuple[str, str]:
+        """Return (mood, user_id) from multimodal perception."""
+        emotion_state = self.emotion.perceive(audio_path, image_or_video)
+        mood = emotion_state.overall()
+        user_id = self.emotion.recognize_identity(audio_path)
+        return mood, user_id
+
     def process(self, user: UserInput) -> DialogueResponse:
         """Process user input through the full pipeline.
 
@@ -95,25 +124,27 @@ class IntelligentCore:
             information. If omitted, defaults defined in
             :class:`UserInput` are used.
         """
-        logger.info("Processing input from %s", user.user_id)
-        # 1. optional speech recognition
-        if not user.text and self.asr_url:
-            from .service_clients import call_asr
-
-            user.text = call_asr(user.audio_path, self.asr_url)
-            logger.debug("ASR result: %s", user.text)
+        logger.info("Processing input for robot %s from %s", user.robot_id, user.user_id or "unknown")
+        from . import global_state
+        if not global_state.is_robot_allowed(user.robot_id):
+            raise ValueError(f"Robot {user.robot_id} is not authorised")
+        # Fill optional paths with defaults 用默认值填充可选路径
+        audio_path, image_path = self._resolve_paths(user)
+        # 1. ensure text content from ASR if necessary
+        self._ensure_text(user, audio_path)
 
         # 2. emotion & identity perception
-        emotion_state = self.emotion.perceive(user.audio_path, user.image_path)  # 情绪识别
-        mood = emotion_state.overall()  # 综合情绪结果
-        user_id = self.emotion.recognize_identity(user.audio_path)  # 声纹识别身份
+        img_or_video = user.video_path or image_path
+        mood, user_id = self._perceive(audio_path, img_or_video)
+        if not user_id or user_id == "unknown":
+            # 声纹无法识别时创建新的访客身份
+            user_id = f"guest_{global_state.INTERACTION_COUNT + 1}"
         logger.debug("Emotion: %s, user_id: %s", mood, user_id)
         user.user_id = user_id
-        from . import global_state
 
         # 3. update global stats
         global_state.increment()  # 更新全局交互计数
-        global_state.add_audio_duration(user.audio_path)  # 累加语音时长
+        global_state.add_audio_duration(audio_path)  # 累加语音时长
 
         # 4. dialogue generation based on personality and memory
         response = self.dialogue.generate_response(
