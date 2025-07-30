@@ -18,7 +18,15 @@ from .semantic_memory import SemanticMemory
 from .emotion_perception import EmotionPerception, EmotionState
 from .dialogue_engine import DialogueEngine, DialogueResponse
 from .intelligent_core import IntelligentCore, UserInput
-from .service_clients import call_asr, call_tts, call_llm, call_voiceprint
+# Service API wrappers 服务接口封装
+from .service_api import (
+    call_asr,
+    call_tts,
+    call_llm,
+    call_voiceprint,
+    call_memory_save,
+    call_memory_query,
+)
 # Constants shared across modules. 统一的默认常量
 from .constants import (
     DEFAULT_TTS_URL,  # 默认 TTS 服务地址
@@ -29,6 +37,11 @@ from .constants import (
     DEFAULT_IMAGE_PATH,  # 演示图像文件
     DEFAULT_GROWTH_STAGE,  # 默认成长阶段
     DEFAULT_PERSONALITY_VECTOR,  # 默认人格向量
+    EMOTION_STATES,  # 情绪状态列表
+    EMOTION_PROMPT_TEMPLATE,  # 情绪识别提示模板
+    DEFAULT_MEMORY_SAVE_URL,  # 记忆存储服务地址
+    DEFAULT_MEMORY_QUERY_URL,  # 记忆查询服务地址
+    MULTI_MODAL_EMOTION_PROMPT,  # 多模态情绪识别提示模板
 )
 # Global metrics utilities 全局统计相关工具
 from . import global_state
@@ -58,9 +71,13 @@ __all__ = [
     "call_tts",              # 调用语音合成服务
     "call_llm",              # 调用大模型服务
     "call_voiceprint",       # 调用声纹识别服务
+    "call_memory_save",      # 调用记忆存储服务
+    "call_memory_query",     # 调用记忆查询服务
     "DEFAULT_TTS_URL",       # TTS 服务默认地址
     "DEFAULT_ASR_URL",       # ASR 服务默认地址
     "DEFAULT_LLM_URL",       # LLM 服务默认地址
+    "DEFAULT_MEMORY_SAVE_URL",  # 记忆存储服务地址
+    "DEFAULT_MEMORY_QUERY_URL",  # 记忆查询服务地址
     "DEFAULT_VOICEPRINT_URL",# 声纹识别服务默认地址
     "increment",             # 交互计数加一
     "reset",                 # 重置全局状态
@@ -71,4 +88,7 @@ __all__ = [
     "global_state",          # 全局状态模块
     "DEFAULT_GROWTH_STAGE",  # 默认成长阶段
     "DEFAULT_PERSONALITY_VECTOR",  # 默认人格向量
+    "EMOTION_STATES",        # 通用情绪列表
+    "EMOTION_PROMPT_TEMPLATE",  # 情绪识别提示模板
+    "MULTI_MODAL_EMOTION_PROMPT",  # 多模态情绪识别提示模板
 ]
