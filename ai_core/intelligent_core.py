@@ -84,6 +84,7 @@ class IntelligentCore:
         self.dialogue = dialogue or DialogueEngine(llm_url=llm_url, tts_url=tts_url)  # 对话系统
         self.emotion = emotion or EmotionPerception(
             voiceprint_url=voiceprint_url,
+            llm_url=llm_url,
             memory=self.dialogue.memory,
             personality=self.dialogue.personality,
         )   # 情绪识别系统
@@ -100,7 +101,7 @@ class IntelligentCore:
         if user.text:
             return
         if self.asr_url:
-            from .service_clients import call_asr
+            from .service_api import call_asr
 
             user.text = call_asr(audio_path, self.asr_url)
             logger.debug("ASR result: %s", user.text)
@@ -137,7 +138,9 @@ class IntelligentCore:
         logger.info("Processing input for robot %s from %s", user.robot_id, user.user_id or "unknown")
         from . import global_state
         if not global_state.is_robot_allowed(user.robot_id):
-            raise ValueError(f"Robot {user.robot_id} is not authorised")
+            raise ValueError(
+                f"Robot ID '{user.robot_id}' is not allowed. 请检查机器人编号是否在白名单内"
+            )
         # Fill optional paths with defaults 用默认值填充可选路径
         audio_path, image_path = self._resolve_paths(user)
         # 1. ensure text content from ASR if necessary
