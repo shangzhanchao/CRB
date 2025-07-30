@@ -9,6 +9,7 @@ class TestIntelligentCore(unittest.TestCase):
             audio_path='user1.wav',
             image_path='face.png',
             text='Hi',
+            robot_id='robotA',
             touched=True,
             touch_zone=1,
         )
