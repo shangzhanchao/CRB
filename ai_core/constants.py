@@ -36,7 +36,12 @@ STAGE_THRESHOLDS = {
     "sprout": {"days": 3, "interactions": 5, "audio_seconds": 60},
     "enlighten": {"days": 10, "interactions": 20, "audio_seconds": 300},
     "resonate": {"days": 30, "interactions": 50, "audio_seconds": 900},
+    # The awaken stage requires roughly twice the data of resonate
+    "awaken": {"days": 45, "interactions": 75, "audio_seconds": 1500},
 }
+
+# Order of growth stages 成长阶段顺序
+STAGE_ORDER = ["sprout", "enlighten", "resonate", "awaken"]
 
 # Logging level 日志级别
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
