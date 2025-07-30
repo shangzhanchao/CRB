@@ -16,12 +16,21 @@ import logging
 from .constants import DEFAULT_PERSONALITY_VECTOR, LOG_LEVEL
 
 
+#
+# Mapping from behaviour tags to OCEAN deltas.
+# 行为标签到 OCEAN 向量增量的映射表。
+#
+# Each list contains five numbers representing adjustments for
+# ``[Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism]``.
+# These increments are blended with the current personality vector using the
+# momentum decay factor so personality shifts remain smooth.
+#
 DEFAULT_BEHAVIOR_MAP = {
-    "praise": [0.1, 0.05, 0.1, 0.05, -0.05],
-    "criticism": [-0.1, -0.05, -0.1, -0.05, 0.1],
-    "joke": [0.05, -0.05, 0.2, 0.1, -0.05],
-    "support": [0.05, 0.1, 0.05, 0.1, -0.05],
-    "touch": [0.05, 0.05, 0.1, 0.1, -0.05],  # 抚摸交互行为
+    "praise": [0.1, 0.05, 0.1, 0.05, -0.05],       # 用户夸奖机器人
+    "criticism": [-0.1, -0.05, -0.1, -0.05, 0.1],  # 用户批评机器人
+    "joke": [0.05, -0.05, 0.2, 0.1, -0.05],        # 轻松幽默的互动
+    "support": [0.05, 0.1, 0.05, 0.1, -0.05],      # 鼓励或支持
+    "touch": [0.05, 0.05, 0.1, 0.1, -0.05],        # 抚摸交互行为
 }
 
 
@@ -43,14 +52,17 @@ class PersonalityEngine:
         Parameters
         ----------
         momentum: float, optional
-            Momentum decay factor controlling update smoothness. 默认为 ``0.9``
-            表示更新时保持 90% 的历史状态。
+            Momentum decay factor controlling update smoothness. 默认为 ``0.9``。
+            Personality updates apply ``new = momentum * old + (1 - momentum) * delta``
+            so 0.9 keeps 90% of the previous value and 10% of the new delta.
         behavior_map: dict | None, optional
             Mapping from behavior tag to OCEAN vector deltas. 如未提供，
             默认使用 :data:`DEFAULT_BEHAVIOR_MAP`。
         """
         # OCEAN: Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism
         # OCEAN：开放性、责任心、外向性、宜人性、神经质
+        if not 0.0 <= momentum <= 1.0:
+            raise ValueError("momentum must be between 0 and 1")
         self.vector = list(DEFAULT_PERSONALITY_VECTOR)  # 初始外向人格
         self.momentum = momentum  # 动量衰减因子
         # 行为标签映射表，可自定义传入
@@ -71,8 +83,10 @@ class PersonalityEngine:
             ``"neutral"`` 时，不会对人格向量产生调整。
         """
         delta = self.behavior_map.get(behavior_tag, [0.0] * 5)
+        if len(delta) != 5:
+            raise ValueError("behavior delta must have 5 dimensions")
         self.logger.debug("Updating personality with tag %s", behavior_tag)
-        # 使用动量衰减更新人格向量，确保变化平滑
+        # 使用动量衰减更新人格向量，确保变化平滑并限制范围在 [-1, 1]
         self.vector = [
             max(-1.0, min(1.0, self.momentum * v + (1 - self.momentum) * d))
             for v, d in zip(self.vector, delta)
@@ -97,5 +111,8 @@ class PersonalityEngine:
         return style
 
     def get_vector(self):
-        """Return the current OCEAN vector. 返回当前的人格向量。"""
+        """Return a copy of the current OCEAN vector.
+
+        返回当前人格向量的副本，避免外部修改。
+        """
         return list(self.vector)
