@@ -46,15 +46,13 @@ processing. The most important one is the multimodal LLM at ``DEFAULT_LLM_URL``
 interpretation.  If you deploy your own LLM service, point ``LLM_URL`` to it so
 the system can fully function:
 
-- **ASR** (`asr.szc.com`) – convert user audio to text.
-- **Voiceprint** (`voiceprint.szc.com`) – identify the speaker.
-- **LLM** (`llm.szc.com`) – generate richer replies.
-  This endpoint is referenced by ``DEFAULT_LLM_URL`` and is essential for
-  advanced features such as story telling and emotion-aware responses.
-- **Memory DB** (`memory-save.szc.com` & `memory-query.szc.com`) – store and query dialogues.
-- **TTS** (`tts.szc.com`) – synthesize reply audio.
+- **ASR** (`asr.szc.com`) – convert user audio to text.  语音识别服务
+- **Voiceprint** (`voiceprint.szc.com`) – identify the speaker.  声纹识别服务
+- **LLM** (`llm.szc.com`) – generate richer replies.  此地址在 ``DEFAULT_LLM_URL`` 中设定，用于讲述和情绪理解等高级功能
+- **Memory DB** (`memory-save.szc.com` & `memory-query.szc.com`) – store and query dialogues. If these services are unreachable, records will be saved to `memory_backup.json` locally and queries will read from that file.  对话记录存取服务
+- **TTS** (`tts.szc.com`) – synthesize reply audio.  语音合成服务
 
-外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。默认的 ``llm.szc.com`` 用于解释情绪和生成多模态回复，是系统核心依赖。
+外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。其中 ``llm.szc.com`` 是系统生成回复和理解情绪的核心依赖。
 
 Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL``, ``TTS_URL``, ``MEMORY_SAVE_URL`` and ``MEMORY_QUERY_URL``.
 
@@ -74,7 +72,7 @@ ai_core/
   semantic_memory.py    - 向量化语义记忆
   emotion_perception.py - 声音与视觉情绪识别
   dialogue_engine.py    - 成长式对话生成
-  intelligent_core.py   - 子模块调度与总入口
+ intelligent_core.py   - 子模块调度与总入口
   global_state.py       - 全局交互计数与语音时长
   service_api.py        - 调用外部 ASR/LLM/TTS 服务的工具
   constants.py          - 全局常量与默认值
@@ -92,15 +90,19 @@ The file `ai_core/constants.py` groups configuration values:
 ## Architecture Overview
 
 1. **EmotionPerception** reads audio and image inputs (`DEFAULT_AUDIO_PATH`,
-   `DEFAULT_IMAGE_PATH`) and outputs a fused emotion tag. 该模块提供“简易融合”与
-   “多模态模型”两种情绪识别方式，可通过参数选择。
+   `DEFAULT_IMAGE_PATH`) and outputs a fused emotion tag.
+   该模块提供“简易融合”与“多模态模型”两种情绪识别方式，可通过参数选择。
 2. **DialogueEngine** uses `PersonalityEngine` and `SemanticMemory` to produce
    responses while updating interaction stages and returns structured
    information for voice, action and facial expression.
+   该引擎会根据成长阶段和记忆内容生成对应语气与动作。
 3. **IntelligentCore** orchestrates the pipeline: emotion recognition → model
    feedback → personality growth → voice generation, storing each dialog in the
-   Each step may call remote services defined in `service_api.py`.
-   memory cloud.
+   memory cloud. Each step may call remote services defined in
+   `service_api.py`.
+   是此系统的中心组件，负责统一管理输入数据、依次
+   调度情绪识别、记忆查询和对话生成等模块，确保从感知到回应的流程
+   连贯执行，最终输出语音、动作与表情反馈。
 4. `global_state.INTERACTION_COUNT` 和 `AUDIO_DATA_SECONDS` track how much the
    robot has interacted and how much speech data it has processed. These
    metrics unlock growth stages.  \
@@ -189,20 +191,23 @@ fit your scenario.
 The :class:`~ai_core.IntelligentCore` accepts a :class:`~ai_core.UserInput`
 instance describing the current interaction. ``robot_id`` is mandatory so the
 server knows which device issued the request. All other fields may be omitted
-(``None``) and internal defaults will be used:
+(``None``) and internal defaults will be used.
+下表展示所有参数，除了 ``robot_id`` 之外均为可选项，可留空使用默认值：
 
-* ``audio_path`` – path to the user's voice recording (may be ``None``)
-* ``user_id`` – optional speaker ID recognized from voiceprint service
-* ``image_path`` – optional face image
-* ``text`` – recognized or typed text
-* ``video_path`` – optional video file analysed like an image
-* ``touched`` – whether a touch sensor was activated
-* ``touch_zone`` – integer ID of the touched area for more granular feedback
-When values are missing, IntelligentCore will call the ASR and memory services defined in `constants.py`.
-* ``robot_id`` – ID of the robot sending the request **(required)**
+| Parameter    | Type   | Description                                   | Example |
+|--------------|--------|-----------------------------------------------|---------|
+| ``audio_path`` | str or ``None`` | path to the user's voice recording | ``"user.wav"`` |
+| ``image_path`` | str or ``None`` | face image path | ``"face.png"`` |
+| ``video_path`` | str or ``None`` | optional video clip analysed as image | ``"video.mp4"`` |
+| ``text`` | str or ``None`` | recognized or typed text | ``"你好"`` |
+| ``touch_zone`` | int or ``None`` | touch area identifier | ``0`` |
+| ``robot_id`` | str **required** | ID of the robot sending the request | ``"robotA"`` |
 
-All parameters except ``robot_id`` are optional. When they are ``None`` the
-system falls back to internal demo files.
+When values are missing, ``IntelligentCore`` calls the ASR and memory services
+defined in ``constants.py``. All parameters except ``robot_id`` are optional and
+default to demo data when ``None``.
+以上字段涵盖一次互动可能提供的所有信息，音频、图片或视频可任选其一，
+文本为空时系统会尝试通过 ASR 识别。
 
 ## 简要说明
 
@@ -228,12 +233,21 @@ system falls back to internal demo files.
    最终结果包含动作和面部动画标签。
 成长阶段直接左右最终输出，使对话风格随互动次数与语音数据量逐步进化。
 ## Usage
-Run `python demo.py --robot robotA` and start typing messages. Optional
-arguments let you specify audio, image or video files to test multimodal input.
+Run `python demo.py --robot_id robotA` and start typing messages. Optional
+arguments let you specify text, audio, image or video files as well as a touch
+zone to test multimodal input.
+Example:
+
+```bash
+python demo.py --robot_id robotA --text "你好" --audio my.wav \
+  --image face.png --video clip.mp4 --touch_zone 0
+```
+
 Type `quit` to exit.
 
-使用方法：运行 `python demo.py --robot robotA` 开始交互，可通过
-`--audio`、`--image`、`--video` 指定自定义文件。输入 `quit` 结束。
+使用方法：运行 `python demo.py --robot_id robotA` 开始交互，可通过
+`--text`、`--audio`、`--image`、`--video`、`--touch_zone` 指定自定义文件或
+触摸编号。输入 `quit` 结束。
 当交互包含触摸时，可输入触摸区域编号以获得对应动作反馈。
 
 ## HTTP Service
@@ -241,14 +255,43 @@ Type `quit` to exit.
 You can also run a lightweight HTTP server as a unified entry point:
 
 The web service loads `IntelligentCore` and forwards each request so all remote modules are triggered in sequence.
-该 HTTP 服务加载 IntelligentCore，将请求依次传入情绪识别、记忆服务和对话生成模块。
+该 HTTP 服务加载 `IntelligentCore`，依次调用情绪识别、记忆查询与对话生成模块，
+确保外部服务按顺序工作，便于与其它系统集成。
 ```bash
 python service.py
 ```
 
 Send a `POST` request to `http://localhost:8000/interact` with a JSON body
-containing the fields described above.  The reply JSON has the following
-structure and all fields are non-empty:
+containing the fields described above. Example request:
+
+```json
+{
+  "robot_id": "robotA",
+  "text": "你好",
+  "audio_path": "user.wav",
+  "image_path": "face.png",
+  "video_path": "clip.mp4",
+  "touch_zone": 0
+}
+```
+
+该接口返回与命令行演示相同的结构化结果，可直接集成到前端或
+其他服务。请求和返回内容均采用 UTF-8 编码，方便中文环境调试。
+
+### Output Format
+
+`IntelligentCore.process()` returns a `DialogueResponse` dataclass. When
+converted with `as_dict()` the HTTP service responds with four non-empty fields.
+该结构保证文本、音频、动作和表情四项内容均不为空，便于机器人执行相应反馈：
+
+| Field | Type | Description |
+|-------|------|-------------|
+| ``text`` | ``str`` | Text reply from the LLM |
+| ``audio`` | ``str`` | URL or path of the synthesized speech |
+| ``action`` | ``list[str]`` | One or more robot action codes |
+| ``expression`` | ``str`` | Facial expression tag |
+
+Example response:
 
 ```json
 {
