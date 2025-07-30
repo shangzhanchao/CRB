@@ -26,6 +26,12 @@ from .service_api import (
     call_voiceprint,
     call_memory_save,
     call_memory_query,
+    async_call_asr,
+    async_call_tts,
+    async_call_llm,
+    async_call_voiceprint,
+    async_call_memory_save,
+    async_call_memory_query,
 )
 # Constants shared across modules. 统一的默认常量
 from .constants import (
@@ -42,7 +48,8 @@ from .constants import (
     DEFAULT_MEMORY_SAVE_URL,  # 记忆存储服务地址
     DEFAULT_MEMORY_QUERY_URL,  # 记忆查询服务地址
     MULTI_MODAL_EMOTION_PROMPT,  # 多模态情绪识别提示模板
-)
+    MEMORY_DB_PATH,            # SQLite 数据库文件路径
+    )
 # Global metrics utilities 全局统计相关工具
 from . import global_state
 from .global_state import (
@@ -73,6 +80,12 @@ __all__ = [
     "call_voiceprint",       # 调用声纹识别服务
     "call_memory_save",      # 调用记忆存储服务
     "call_memory_query",     # 调用记忆查询服务
+    "async_call_asr",        # 异步语音识别
+    "async_call_tts",        # 异步语音合成
+    "async_call_llm",        # 异步大模型调用
+    "async_call_voiceprint", # 异步声纹识别
+    "async_call_memory_save",# 异步记忆存储
+    "async_call_memory_query",# 异步记忆查询
     "DEFAULT_TTS_URL",       # TTS 服务默认地址
     "DEFAULT_ASR_URL",       # ASR 服务默认地址
     "DEFAULT_LLM_URL",       # LLM 服务默认地址
@@ -91,4 +104,5 @@ __all__ = [
     "EMOTION_STATES",        # 通用情绪列表
     "EMOTION_PROMPT_TEMPLATE",  # 情绪识别提示模板
     "MULTI_MODAL_EMOTION_PROMPT",  # 多模态情绪识别提示模板
+    "MEMORY_DB_PATH",         # SQLite 数据库文件路径
 ]
