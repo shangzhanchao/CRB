@@ -74,10 +74,10 @@ ai_core/
   semantic_memory.py    - 向量化语义记忆
   emotion_perception.py - 声音与视觉情绪识别
   dialogue_engine.py    - 成长式对话生成
- intelligent_core.py   - 子模块调度与总入口
+  intelligent_core.py   - 子模块调度与总入口
   global_state.py       - 全局交互计数与语音时长
   service_api.py        - 调用外部 ASR/LLM/TTS 服务的工具
-  constants.py          - 全局常量與默認值
+  constants.py          - 全局常量与默认值
 demo.py                - 命令行演示脚本
 ### Constants Overview
 The file `ai_core/constants.py` groups configuration values:
@@ -175,6 +175,7 @@ encode facial animation cues while actions describe body motions:
 | shy / 害羞 | 偏头、眼神回避 → 面部红晕、语音柔化、微幅震颤 | idle + subtle tremble |
 | excited / 兴奋 | 眼神放大、频繁眨眼 → 快速摆头、双手前伸动作 | 快速摇头, 手前伸 |
 | surprised / 惊讶 | 抬头张眼 → 头部抬起，双手急速抬高 | 抬头+双手抬高>25° |
+
 The mapping table below can be modified to fit different hardware capabilities.
 
 When the robot is touched, an additional action such as ``hug`` or ``pat`` is
