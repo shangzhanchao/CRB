@@ -21,10 +21,13 @@ from .constants import (
     STAGE_ORDER,       # 成长阶段顺序
     LOG_LEVEL,
     ROBOT_ID_WHITELIST,  # 允许的机器人编号
+    STATE_FILE,         # 全局状态文件路径
 )
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
+
+import atexit
 
 
 
@@ -162,3 +165,21 @@ def load_state(path: str) -> None:
     except Exception:
         START_TIME = datetime.datetime.now(datetime.timezone.utc)
     logger.info("Global state loaded from %s", path)
+
+
+def get_growth_metrics() -> dict:
+    """Return current metrics for visualization.
+
+    返回当前的成长指标，用于可视化展示。"""
+
+    return {
+        "interaction_count": INTERACTION_COUNT,
+        "audio_seconds": AUDIO_DATA_SECONDS,
+        "days": days_since_start(),
+        "stage": get_growth_stage(),
+    }
+
+
+# 初始化加载和注册退出保存
+load_state(STATE_FILE)
+atexit.register(save_state, STATE_FILE)
