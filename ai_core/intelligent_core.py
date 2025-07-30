@@ -32,18 +32,16 @@ logger.setLevel(LOG_LEVEL)
 
 @dataclass
 class UserInput:
-    """Container for user-provided input paths and text.
+    """Container for incoming interaction data.
 
-    用户提供的语音、图像路径及文本内容。除 ``robot_id`` 外均可为空。
-    """
+    用户输入的数据容器，仅 ``robot_id`` 为必填，其余皆可为空。包含
+    文本、音频、图像、视频及触摸区域编号共六项。"""
 
     audio_path: str | None = None  # 路径可为空
     image_path: str | None = None  # 图片路径可为空
     video_path: str | None = None  # 视频路径可为空
     text: str | None = None        # 文本内容可为空
     robot_id: str = ""             # 机器人编号 (必填)
-    user_id: str | None = None     # 通过声纹识别得到的身份标识，可为空
-    touched: bool = False          # 是否存在抚摸传感器交互
     touch_zone: int | None = None  # 触摸区域编号，可选
 
 
@@ -126,16 +124,22 @@ class IntelligentCore:
         """Process user input through the full pipeline.
 
         处理用户输入，按“语音 → 情绪识别 → 模型反馈 → 性格成长 → \
-        对话生成”的流程返回结果。
+        对话生成”的流程返回 ``DialogueResponse``。
 
         Parameters
         ----------
         user: UserInput
-            Container holding audio path, image path, text and touch
-            information. If omitted, defaults defined in
-            :class:`UserInput` are used.
+            Input data including optional text, audio, image, video and touch
+            zone. ``robot_id`` must be provided. Missing fields will use
+            defaults from :class:`UserInput`.
+
+        Returns
+        -------
+        DialogueResponse
+            Structured reply containing non-empty ``text``, ``audio``,
+            ``action`` and ``expression`` fields.
         """
-        logger.info("Processing input for robot %s from %s", user.robot_id, user.user_id or "unknown")
+        logger.info("Processing input for robot %s", user.robot_id)
         from . import global_state
         if not global_state.is_robot_allowed(user.robot_id):
             raise ValueError(
@@ -153,7 +157,6 @@ class IntelligentCore:
             # 声纹无法识别时创建新的访客身份
             user_id = f"guest_{global_state.INTERACTION_COUNT + 1}"
         logger.debug("Emotion: %s, user_id: %s", mood, user_id)
-        user.user_id = user_id
 
         # 3. update global stats
         global_state.increment()  # 更新全局交互计数
@@ -164,7 +167,7 @@ class IntelligentCore:
             user.text,
             mood_tag=mood,
             user_id=user_id,
-            touched=user.touched,
+            touched=user.touch_zone is not None,
             touch_zone=user.touch_zone,
         )  # 生成回复
         logger.info("Response text: %s", response.text)
