@@ -1,6 +1,6 @@
-"""Simple HTTP entry point for the companion robot brain.
+"""Asynchronous HTTP service for the companion robot brain.
 
-简易 HTTP 服务入口，统一处理外部请求。
+基于 FastAPI 的异步 HTTP 服务入口，可统一处理外部请求。
 
 Example request JSON::
     {"robot_id": "robotA", "text": "hello"}
@@ -9,8 +9,15 @@ Example request JSON::
 from __future__ import annotations
 
 import json
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Dict
+
+try:
+    from fastapi import FastAPI, HTTPException  # type: ignore
+    import uvicorn  # type: ignore
+except Exception:  # pragma: no cover - library missing
+    FastAPI = None  # type: ignore
+    HTTPException = Exception  # type: ignore
+    uvicorn = None  # type: ignore
 
 from ai_core import IntelligentCore, UserInput
 
@@ -40,31 +47,30 @@ def handle_request(payload: Dict[str, Any]):
     return reply.as_dict()
 
 
-class _Handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        if self.path != "/interact":
-            self.send_error(404)
-            return
-        length = int(self.headers.get("Content-Length", 0))
-        data = self.rfile.read(length).decode("utf-8")
-        payload = json.loads(data or "{}")
+app = FastAPI() if FastAPI is not None else None
+
+
+if app is not None:
+    @app.post("/interact")
+    async def interact(payload: Dict[str, Any]):
+        """Async HTTP endpoint bridging to :func:`handle_request`.
+
+        异步网络接口，将请求转发给 :func:`handle_request`。
+        """
         try:
-            result = handle_request(payload)
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(result).encode("utf-8"))
+            return handle_request(payload)
         except Exception as exc:  # pragma: no cover - runtime error
-            self.send_response(400)
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": str(exc)}).encode("utf-8"))
+            raise HTTPException(status_code=400, detail=str(exc))
 
 
 def run_server(host: str = "0.0.0.0", port: int = 8000):
-    """Start the HTTP server."""
-    with HTTPServer((host, port), _Handler) as httpd:
-        print(f"Serving on {host}:{port} ...")
-        httpd.serve_forever()
+    """Start the FastAPI server using Uvicorn.
+
+    启动 FastAPI 服务，连接外网使用 Uvicorn 执行。
+    """
+    if app is None or uvicorn is None:
+        raise ImportError("FastAPI and uvicorn are required to run the service")
+    uvicorn.run(app, host=host, port=port)
 
 
 if __name__ == "__main__":  # pragma: no cover
