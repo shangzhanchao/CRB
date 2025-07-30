@@ -142,15 +142,20 @@ fit your scenario.
 ## Input Parameters
 
 The :class:`~ai_core.IntelligentCore` accepts a :class:`~ai_core.UserInput`
-instance describing the current interaction:
+instance describing the current interaction. ``robot_id`` is mandatory so the
+server knows which device issued the request. All other fields may be omitted
+(``None``) and internal defaults will be used:
 
-* ``audio_path`` – path to the user's voice recording
+* ``audio_path`` – path to the user's voice recording (may be ``None``)
 * ``image_path`` – optional face image
 * ``text`` – recognized or typed text
+* ``video_path`` – optional video file analysed like an image
 * ``touched`` – whether a touch sensor was activated
 * ``touch_zone`` – integer ID of the touched area for more granular feedback
+* ``robot_id`` – ID of the robot sending the request **(required)**
 
-All parameters are optional and default to demo files or ``None``.
+All parameters except ``robot_id`` are optional. When they are ``None`` the
+system falls back to internal demo files.
 
 ## 简要说明
 
@@ -161,15 +166,25 @@ All parameters are optional and default to demo files or ``None``.
 
 ## Usage
 
-Run `python demo.py` and start typing messages. The demo shows how the modules
-work together. Voice file names encode the speaker ID and each call updates the
-global interaction counter. Default demo files `voice.wav` and `face.png` are
-used when no specific paths are provided. Type `quit` to exit.
+Run `python demo.py --robot robotA` and start typing messages. Optional
+arguments let you specify audio, image or video files to test multimodal input.
+Type `quit` to exit.
 
-使用方法：运行 `python demo.py`，输入内容即可与示例系统交互，输入 `quit` 结束。
-如未指定语音或图像文件，系统将使用默认的 `voice.wav` 与 `face.png` 进行演示。
-当 `UserInput.touched` 为 True 时，可额外传入 `touch_zone` 指定触摸区域，
-系统会依此记录并给出相应动作反馈。
+使用方法：运行 `python demo.py --robot robotA` 开始交互，可通过
+`--audio`、`--image`、`--video` 指定自定义文件。输入 `quit` 结束。
+当交互包含触摸时，可输入触摸区域编号以获得对应动作反馈。
+
+## HTTP Service
+
+You can also run a lightweight HTTP server as a unified entry point:
+
+```bash
+python service.py
+```
+
+Send a `POST` request to `http://localhost:8000/interact` with a JSON body
+containing the fields described above. The response always includes non-empty
+`text`, `voice`, `action`, `expression` and `audio` values.
 
 ## Testing
 
