@@ -13,26 +13,50 @@ import wave
 import audioop
 import logging
 from dataclasses import dataclass
+from collections import Counter
+from typing import Optional
+
+from .semantic_memory import SemanticMemory
+from .personality_engine import PersonalityEngine
 
 
 @dataclass
 class EmotionState:
-    """Emotion results from voice and face.
+    """Emotion results from multiple modalities.
 
-    来自语音和面部的情绪识别结果。
+    来自语音、文本和面部的情绪识别结果。
     """
+
     from_voice: str
     from_face: str
+    from_text: str = "neutral"
+    from_memory: Optional[str] = None
 
-    def overall(self) -> str:
-        """Fuse emotions from voice and face.
+    def overall(self, personality: Optional[PersonalityEngine] = None) -> str:
+        """Fuse emotions from all modalities and personality.
 
-        融合语音与视觉的情绪结果。
-        """
-        if self.from_voice == self.from_face:
-            return self.from_voice
-        # naive fusion logic
-        return self.from_voice or self.from_face
+        融合语音、文本、视觉以及人格信息得到最终情绪。"""
+
+        votes = [self.from_voice, self.from_face]
+        if self.from_text != "neutral":
+            votes.append(self.from_text)
+        if self.from_memory:
+            votes.append(self.from_memory)
+
+        cnt = Counter(votes)
+        mood, _ = cnt.most_common(1)[0]
+
+        if self.from_text != "neutral":
+            mood = self.from_text
+
+        if mood == "neutral" and personality is not None:
+            ext = personality.get_vector()[2]
+            if ext > 0.5:
+                mood = "happy"
+            elif ext < -0.5:
+                mood = "sad"
+
+        return mood
 
 
 from .constants import (
@@ -41,6 +65,8 @@ from .constants import (
     LOG_LEVEL,
     DEFAULT_RMS_ANGRY,
     DEFAULT_RMS_CALM,
+    POSITIVE_WORDS,
+    NEGATIVE_WORDS,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,6 +84,8 @@ class EmotionPerception:
         rms_angry: int = DEFAULT_RMS_ANGRY,
         rms_calm: int = DEFAULT_RMS_CALM,
         voiceprint_url: str | None = None,
+        memory: Optional[SemanticMemory] = None,
+        personality: Optional[PersonalityEngine] = None,
     ) -> None:
         """Set up any required models.
 
@@ -75,10 +103,18 @@ class EmotionPerception:
             :data:`DEFAULT_RMS_CALM`.
             音频均方根低于该值则判断为 "calm"，默认值为
             :data:`DEFAULT_RMS_CALM`。
+        memory: SemanticMemory | None, optional
+            Memory system used to reference past moods.
+            语义记忆模块，可用于读取用户先前的情绪。 
+        personality: PersonalityEngine | None, optional
+            Personality engine adjusting neutral moods.
+            人格引擎，可在情绪模糊时根据外向性等因素调整结果。
         """
         self.rms_angry = rms_angry
         self.rms_calm = rms_calm
         self.voiceprint_url = voiceprint_url
+        self.memory = memory
+        self.personality = personality
 
     def recognize_identity(self, audio_path: str = DEFAULT_AUDIO_PATH) -> str:
         """Recognize speaker identity from voice.
@@ -148,10 +184,24 @@ class EmotionPerception:
             return "happy"
         return "neutral"
 
+    def recognize_from_text(self, text: str) -> str:
+        """Infer emotion from user text using word lists.
+
+        使用词表从用户文本中推测情绪。
+        """
+        text = text.lower()
+        if any(w in text for w in NEGATIVE_WORDS):
+            return "angry"
+        if any(w in text for w in POSITIVE_WORDS):
+            return "happy"
+        return "neutral"
+
     def perceive(
         self,
         audio_path: str = DEFAULT_AUDIO_PATH,
         image_path: str = DEFAULT_IMAGE_PATH,
+        text: str = "",
+        user_id: str | None = None,
     ) -> EmotionState:
         """Perceive emotion from multimodal inputs.
 
@@ -165,9 +215,35 @@ class EmotionPerception:
         image_path: str, optional
             Face image path. Default :data:`DEFAULT_IMAGE_PATH`.
         """
-        logger.info("Perceiving emotion from %s and %s", audio_path, image_path)
+        logger.info(
+            "Perceiving emotion from %s and %s with text '%s'", audio_path, image_path, text
+        )
         voice_emotion = self.recognize_from_voice(audio_path)
         face_emotion = self.recognize_from_face(image_path)
-        state = EmotionState(from_voice=voice_emotion, from_face=face_emotion)
-        logger.debug("Emotion perceived: %s", state)
+        text_emotion = self.recognize_from_text(text) if text else "neutral"
+        memory_mood = None
+        if self.memory is not None:
+            memory_mood = self.memory.last_mood(user_id)
+
+        state = EmotionState(
+            from_voice=voice_emotion,
+            from_face=face_emotion,
+            from_text=text_emotion,
+            from_memory=memory_mood,
+        )
+
+        mood = state.overall()
+        if text_emotion != "neutral":
+            mood = text_emotion
+        if mood == "neutral" and self.personality is not None:
+            ext = self.personality.get_vector()[2]
+            if ext > 0.5:
+                mood = "happy"
+            elif ext < -0.5:
+                mood = "sad"
+        logger.debug("Emotion perceived: %s | final mood %s", state, mood)
+        state.from_memory = memory_mood
+        # store final mood if memory available
+        if self.memory is not None and user_id is not None:
+            self.memory.add_memory(text, "", mood, user_id)
         return state  # 返回融合后的情绪状态
