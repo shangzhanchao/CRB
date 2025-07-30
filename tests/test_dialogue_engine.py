@@ -8,6 +8,7 @@ class TestDialogueEngine(unittest.TestCase):
         text = 'Hello'
         resp = engine.generate_response(text, 'happy', user_id='user1', touched=True)
         self.assertIsInstance(resp.text, str)
+        self.assertIsInstance(resp.action, list)
         self.assertIn('hug', resp.action)
         self.assertGreater(len(engine.memory.records), 0)
 
