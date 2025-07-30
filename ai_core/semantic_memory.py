@@ -1,18 +1,21 @@
-"""Semantic episodic memory module.
+"""Semantic episodic memory module backed by SQLite.
 
 文件结构说明：
 
 ```
 SemanticMemory -> 核心类
-  _embed()     -> 文本哈希嵌入函数
-  add_memory() -> 存入对话记录
-  query_memory() -> 相似内容检索
+  _embed()     -> 文本或句向量嵌入函数
+  add_memory() -> 存入对话记录并更新索引
+  query_memory() -> 使用向量搜索相似内容
 ```
 """
 
 import datetime
 import hashlib
 import logging
+import json
+import os
+import sqlite3
 from typing import List, Dict, Any
 
 try:
@@ -20,59 +23,131 @@ try:
 except ImportError:  # pragma: no cover
     np = None
 
-try:
-    import faiss  # type: ignore
-except ImportError:  # pragma: no cover
-    faiss = None
 
-from .constants import LOG_LEVEL, DEFAULT_MEMORY_SAVE_URL, DEFAULT_MEMORY_QUERY_URL
+from .constants import (
+    LOG_LEVEL,
+    DEFAULT_MEMORY_SAVE_URL,
+    DEFAULT_MEMORY_QUERY_URL,
+    MEMORY_DB_PATH,
+)
 from .service_api import call_memory_save, call_memory_query
+
+try:
+    from sentence_transformers import SentenceTransformer  # type: ignore
+except Exception:  # pragma: no cover - library missing
+    SentenceTransformer = None
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
 
 
 class SemanticMemory:
-    """Simple vector-based semantic memory using FAISS if desired.
+    """Simple vector-based semantic memory using SQLite.
 
-    基于向量的语义记忆模块，可选择使用 FAISS 加速。
+    基于向量的语义记忆模块，使用 SQLite 数据库存储记录。
     """
 
-    def __init__(self, vector_dim: int = 384, use_faiss: bool | None = None, save_url: str | None = DEFAULT_MEMORY_SAVE_URL, query_url: str | None = DEFAULT_MEMORY_QUERY_URL) -> None:
-        """Initialize memory store and optional FAISS index.
+    def __init__(
+        self,
+        vector_dim: int = 384,
+        save_url: str | None = DEFAULT_MEMORY_SAVE_URL,
+        query_url: str | None = DEFAULT_MEMORY_QUERY_URL,
+        use_transformer: bool | None = None,
+        model_name: str = "all-MiniLM-L6-v2",
+        db_path: str = MEMORY_DB_PATH,
+    ) -> None:
+        """Initialize memory store backed by SQLite.
 
-        初始化记忆存储及 FAISS 索引（如果可用）。
+        初始化基于 SQLite 的记忆存储。
 
         Parameters
         ----------
         vector_dim: int, optional
             Dimensionality of embedding vectors. 嵌入向量的维度，默认为 ``384``。
-        use_faiss: bool | None, optional
-            Whether to use FAISS for similarity search. ``None`` 代表自动判断
-            (如果已安装 FAISS 就使用)。
         save_url: str | None, optional
             Remote service to store memory records. 记忆存储服务地址。
         query_url: str | None, optional
             Remote service to query memory records. 记忆查询服务地址。
+        db_path: str, optional
+            Path to the SQLite database storing memory records.
+            记忆记录保存的 SQLite 数据库路径。
         """
         self.vector_dim = vector_dim  # 向量维度
         self.records: List[Dict[str, Any]] = []  # 存储对话记录
         self.save_url = save_url
         self.query_url = query_url
-        if use_faiss is None:
-            use_faiss = faiss is not None
-        if use_faiss and faiss is not None:
-            self.index = faiss.IndexFlatL2(vector_dim)  # 使用 FAISS 建立索引
-        else:
-            self.index = None  # 回退到纯 Python 搜索
+        self.transformer = None
+        if use_transformer is None:
+            use_transformer = SentenceTransformer is not None
+        if use_transformer and SentenceTransformer is not None:
+            try:
+                self.transformer = SentenceTransformer(model_name)
+                test_vec = self.transformer.encode(["test"])[0]
+                self.vector_dim = len(test_vec)
+            except Exception as exc:  # pragma: no cover
+                logger.warning("SentenceTransformer load failed: %s", exc)
+                self.transformer = None
+        self.db_path = db_path
+        self.conn = sqlite3.connect(self.db_path)
+        self.conn.row_factory = sqlite3.Row
+        self._init_db()
+        self.load()
+
+    def _init_db(self) -> None:
+        """Create the memory table if it doesn't exist."""
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory (
+                time TEXT,
+                user_text TEXT,
+                ai_response TEXT,
+                mood_tag TEXT,
+                user_id TEXT,
+                touched INTEGER,
+                touch_zone INTEGER,
+                vector TEXT
+            )
+            """
+        )
+        self.conn.commit()
+
+    def load(self) -> None:
+        """Load records from the SQLite database into memory."""
+        cur = self.conn.cursor()
+        rows = cur.execute("SELECT * FROM memory").fetchall()
+        self.records = []
+        for row in rows:
+            self.records.append(
+                {
+                    "time": datetime.datetime.fromisoformat(row["time"]),
+                    "user_text": row["user_text"],
+                    "ai_response": row["ai_response"],
+                    "mood_tag": row["mood_tag"],
+                    "user_id": row["user_id"],
+                    "touched": bool(row["touched"]),
+                    "touch_zone": row["touch_zone"],
+                    "topic_vector": json.loads(row["vector"]),
+                }
+            )
 
     def _embed(self, text: str):
-        """Convert text to a deterministic vector using hashing.
+        """Convert text to a vector using sentence transformers when available.
 
-        使用哈希算法将文本转换为确定性向量。
-        """
-        digest = hashlib.sha256(text.encode("utf-8")).digest()  # 生成文本哈希
+        优先使用 ``sentence-transformers`` 生成真实语义向量，若库或模型缺失
+        则退化为简单哈希向量。"""
+
         logger.debug("Embedding text: %s", text)
+        if self.transformer is not None:
+            try:
+                vec = self.transformer.encode([text])[0]
+                if np is not None:
+                    return np.array(vec, dtype="float32")
+                return [float(v) for v in vec]
+            except Exception as exc:  # pragma: no cover
+                logger.warning("Transformer embedding failed: %s", exc)
+
+        digest = hashlib.sha256(text.encode("utf-8")).digest()
         if np is not None:
             arr = np.frombuffer(digest, dtype=np.uint8).astype("float32") / 255.0
             if arr.size < self.vector_dim:
@@ -82,6 +157,7 @@ class SemanticMemory:
         if len(vec) < self.vector_dim:
             vec += [0.0] * (self.vector_dim - len(vec))
         return vec
+
 
     def add_memory(
         self,
@@ -122,8 +198,21 @@ class SemanticMemory:
         }
         self.records.append(record)
         logger.debug("Memory added: %s", record)
-        if self.index is not None and np is not None:
-            self.index.add(np.expand_dims(np.array(vec, dtype="float32"), 0))
+        cur = self.conn.cursor()
+        cur.execute(
+            "INSERT INTO memory VALUES (?,?,?,?,?,?,?,?)",
+            (
+                record["time"].isoformat(),
+                user_text,
+                ai_response,
+                mood_tag,
+                user_id,
+                int(touched),
+                touch_zone,
+                json.dumps(vec),
+            ),
+        )
+        self.conn.commit()
         if self.save_url:
             ok = call_memory_save(record, self.save_url)
             if not ok:
@@ -153,18 +242,10 @@ class SemanticMemory:
             res = call_memory_query(prompt, top_k, self.query_url)
             if res is not None:
                 return res
-        candidates = (
-            [r for r in self.records if user_id is None or r.get("user_id") == user_id]
-        )
-        if self.index is not None and np is not None and len(candidates) > 0:
-            distances, indices = self.index.search(
-                np.expand_dims(np.array(query_vec, dtype="float32"), 0), top_k
-            )
-            result = [candidates[i] for i in indices[0] if i < len(candidates)]
-            logger.debug("FAISS results: %s", result)
-            return result
-        # fallback linear search
-        # 回退到线性搜索
+        candidates = [
+            r for r in self.records if user_id is None or r.get("user_id") == user_id
+        ]
+        # Linear search across stored records 线性搜索历史记录
         def distance(a, b):
             return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5  # 欧氏距离
 
@@ -174,34 +255,24 @@ class SemanticMemory:
         logger.debug("Linear search results: %s", results)
         return results  # 返回按距离排序的结果
 
-    def save(self, path: str) -> None:
-        """Save memory records to a JSON file.
+    def save_backup(self, path: str) -> None:
+        """Save memory records to a JSON backup file.
 
-        将所有记忆记录保存到 JSON 文件，方便持久化存储。
+        将记忆记录保存到 JSON 备份文件。
         """
-        import json
-
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(self.records, fh, default=str, ensure_ascii=False)
-        logger.info("Memory saved to %s", path)
+        logger.info("Memory backup saved to %s", path)
 
-    def load(self, path: str) -> None:
-        """Load memory records from a JSON file.
-
-        从 JSON 文件恢复历史记忆记录。
-        """
-        import json
-
+    def load_backup(self, path: str) -> None:
+        """Load memory records from a JSON backup file."""
         try:
             with open(path, "r", encoding="utf-8") as fh:
                 self.records = json.load(fh)
         except FileNotFoundError:
             logger.warning("Memory file %s not found", path)
             self.records = []
-        if self.index is not None and np is not None and self.records:
-            vecs = [r["topic_vector"] for r in self.records]
-            self.index.add(np.array(vecs, dtype="float32"))
-        logger.info("Loaded %d memory records", len(self.records))
+        logger.info("Loaded %d memory records from backup", len(self.records))
 
     def last_mood(self, user_id: str | None = None) -> str | None:
         """Return the most recent mood tag for a user."""
