@@ -74,7 +74,7 @@ ai_core/
   semantic_memory.py    - 向量化语义记忆
   emotion_perception.py - 声音与视觉情绪识别
   dialogue_engine.py    - 成长式对话生成
- intelligent_core.py   - 子模块调度与总入口
+  intelligent_core.py   - 子模块调度与总入口
   global_state.py       - 全局交互计数与语音时长
   service_api.py        - 调用外部 ASR/LLM/TTS 服务的工具
   constants.py          - 全局常量与默认值
