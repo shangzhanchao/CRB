@@ -1,37 +1,50 @@
 """Common constants for the Companion Robot Intelligent Brain.
 
-這個文件集中定義系統使用的常量，便於統一管理。"""
+这个文件集中定义系统使用的常量，便于统一管理。"""
 
 import os
 
-# Default file paths for demos 預設的示例文件路徑
+# Default file paths for demos 默认的示例文件路径
 DEFAULT_AUDIO_PATH = "voice.wav"
 DEFAULT_IMAGE_PATH = "face.png"
 
-# Default service endpoints 服務地址
+# Default service endpoints 服务地址
 DEFAULT_TTS_URL = os.environ.get("TTS_URL", "https://tts.szc.com")
 DEFAULT_ASR_URL = os.environ.get("ASR_URL", "https://asr.szc.com")
 DEFAULT_LLM_URL = os.environ.get("LLM_URL", "https://llm.szc.com")
 DEFAULT_VOICEPRINT_URL = os.environ.get("VOICEPRINT_URL", "https://voiceprint.szc.com")
 
-# Growth stage default 默認成長階段
+# Growth stage default 默认成长阶段
 DEFAULT_GROWTH_STAGE = "enlighten"
 
-# Initial personality vector with extraversion 為外向性的人格向量
+# Initial personality vector with extraversion 为外向性的人格向量
+# OCEAN 模型五个维度依次为：开放性、责任心、外向性、宜人性、神经质
+OCEAN_TRAITS = ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"]
 DEFAULT_PERSONALITY_VECTOR = [0.0, 0.0, 1.0, 0.0, 0.0]
 
-# Initial global metric values 全局統計初始值
+# Initial global metric values 全局统计初始值
 INITIAL_INTERACTIONS = 0
 INITIAL_AUDIO_SECONDS = 0.0
 
-# Logging level 日誌級別
+# Growth stage threshold parameters 语言成长阶段阈值
+# 每个阶段解锁需要达到的最小天数、交互次数以及语音时长（秒）
+STAGE_THRESHOLDS = {
+    "sprout": {"days": 3, "interactions": 5, "audio_seconds": 60},
+    "enlighten": {"days": 10, "interactions": 20, "audio_seconds": 300},
+    "resonate": {"days": 30, "interactions": 50, "audio_seconds": 900},
+}
+
+# Logging level 日志级别
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+
+# Allowed robot IDs 允许的机器人编号列表
+ROBOT_ID_WHITELIST = ["robotA", "robotB"]
 
 # Default thresholds for audio emotion recognition 音频情绪判断阈值
 DEFAULT_RMS_ANGRY = 5000
 DEFAULT_RMS_CALM = 1000
 
-# Facial animation mapping for each mood 表情动画對應
+# Facial animation mapping for each mood 表情动画对应
 FACE_ANIMATION_MAP = {
     "happy": (
         "微笑+眨眼+眼神上扬",
@@ -59,7 +72,7 @@ FACE_ANIMATION_MAP = {
     ),
 }
 
-# Motion mapping for body actions 動作映射
+# Motion mapping for body actions 动作映射
 ACTION_MAP = {
     "happy": "nod±15°|sway±10°|hands_up10°",
     "confused": "tilt_oscillate±10°|gaze_switch|hands_still",
@@ -77,7 +90,7 @@ STAGE_LLM_PROMPTS = {
     "awaken": "You are in the awaken stage. Use memories to give proactive suggestions.",
 }
 
-# 中文版本的大模型提示詞
+# 中文版本的大模型提示词
 STAGE_LLM_PROMPTS_CN = {
     "sprout": "你正处于萌芽期，用咿呀声和简单动作回应。",
     "enlighten": "你已进入启蒙期，可以模仿并回答如\"你好\"等简短问候。",
@@ -85,7 +98,7 @@ STAGE_LLM_PROMPTS_CN = {
     "awaken": "你处于觉醒期，根据记忆主动提出建议并互动。",
 }
 
-# Personality trait prompts in English and Chinese 人格特質提示
+# Personality trait prompts in English and Chinese 人格特质提示
 OCEAN_LLM_PROMPTS = {
     "openness": "curious",
     "conscientiousness": "reliable",
