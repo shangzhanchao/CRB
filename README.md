@@ -36,6 +36,7 @@ synthesized to speech, accompanied by an action and facial expression.
 ## External Services
 
 系统默认使用以下外部服务地址，可根据实际部署修改。
+
 The modules can optionally connect to remote services for speech and text
 processing. The most important one is the multimodal LLM at ``DEFAULT_LLM_URL``
 (``llm.szc.com``), which powers advanced dialogue generation and emotion
@@ -51,8 +52,6 @@ the system can fully function:
 - **TTS** (`tts.szc.com`) – synthesize reply audio.
 
 外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。默认的 ``llm.szc.com`` 用于解释情绪和生成多模态回复，是系统核心依赖。
-``TTS_URL`` 自定义，方便接入不同的厂商。默认的 ``llm.szc.com`` 用于解释情绪
-和生成多模态回复，是系统核心依赖。
 
 Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL``, ``TTS_URL``, ``MEMORY_SAVE_URL`` and ``MEMORY_QUERY_URL``.
 
