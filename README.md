@@ -7,14 +7,20 @@ Companion Robot Brain
 The **Companion Robot Intelligent Brain** provides a set of Python modules for
 building an AI companion. The core components include:
 
-- **PersonalityEngine**: tracks OCEAN personality traits with momentum decay.
+- **PersonalityEngine**: tracks OCEAN personality traits with momentum decay.  \
+  **人格成长引擎：** 使用动量衰减维护 OCEAN 五维人格。
 - **SemanticMemory**: stores conversation history in a vector database using
-  hashed embeddings for lightweight semantic search.
-- **EmotionPerception**: recognizes emotions from voice and face inputs with
-  simple heuristics based on file content or name.
+  hashed embeddings for lightweight semantic search.  \
+  **语义记忆系统：** 基于哈希向量存储并检索对话记录。
+- **EmotionPerception**: recognizes emotions from voice and face inputs.
+  It supports a *simple* heuristic fusion mode and a *model-based* mode that
+  sends a multimodal prompt to the LLM.  \
+  **情绪感知模块：** 可通过规则或多模态大模型识别情绪。
 - **DialogueEngine**: generates responses based on personality and memory and
-  evolves from cold start to active interaction.
-- **IntelligentCore**: orchestrates the above modules.
+  evolves from cold start to active interaction.  \
+  **成长式对话系统：** 结合人格与记忆生成风格化回复。
+- **IntelligentCore**: orchestrates the above modules.  \
+  **模块调度中台：** 负责调用各模块处理输入输出。
 
 These modules are located in the `ai_core` package and are designed as simple
 starting points for a more advanced system.
@@ -24,6 +30,9 @@ At a high level, the companion robot receives **voice**, **touch** and
 context. A large language model then drives the reply generation, applying
 growth- and personality-specific prompts. The result is text that can be
 synthesized to speech, accompanied by an action and facial expression.
+
+简要而言，陪伴机器人会接受语音、触摸与摄像头画面等输入，智能大脑把它们转化为情绪
+与语义，再通过大模型生成符合成长阶段和人格的回复，最终输出文本、语音、动作和表情。
 
 ## External Services
 
@@ -39,6 +48,10 @@ the system can fully function:
   This endpoint is referenced by ``DEFAULT_LLM_URL`` and is essential for
   advanced features such as story telling and emotion-aware responses.
 - **TTS** (`tts.szc.com`) – synthesize reply audio.
+
+外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL`` 和
+``TTS_URL`` 自定义，方便接入不同的厂商。默认的 ``llm.szc.com`` 用于解释情绪
+和生成多模态回复，是系统核心依赖。
 
 Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via
 environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL`` and
@@ -69,7 +82,8 @@ demo.py                - 命令行演示脚本
 ## Architecture Overview
 
 1. **EmotionPerception** reads audio and image inputs (`DEFAULT_AUDIO_PATH`,
-   `DEFAULT_IMAGE_PATH`) and outputs a fused emotion tag.
+   `DEFAULT_IMAGE_PATH`) and outputs a fused emotion tag. 该模块提供“简易融合”与
+   “多模态模型”两种情绪识别方式，可通过参数选择。
 2. **DialogueEngine** uses `PersonalityEngine` and `SemanticMemory` to produce
    responses while updating interaction stages and returns structured
    information for voice, action and facial expression.
@@ -78,7 +92,12 @@ demo.py                - 命令行演示脚本
    memory cloud.
 4. `global_state.INTERACTION_COUNT` 和 `AUDIO_DATA_SECONDS` track how much the
    robot has interacted and how much speech data it has processed. These
-   metrics unlock growth stages.
+   metrics unlock growth stages.  \
+   全局状态可以通过 `global_state.save_state()` 与 `load_state()` 持久化到文件，
+   以便下次启动时继续成长历程。
+
+上述流程对应的中文概述：情绪识别 → 模型反馈 → 性格成长 → 语音生成，
+并将对话记录储存于记忆云，以便后续参考。
 
 During response generation, the dialogue engine builds a prompt for the
 large language model using the current **growth stage**, **personality style**
@@ -101,6 +120,14 @@ proactive suggestions.
 By default the system begins in the **enlighten** stage with an
 **extraversion-oriented** personality vector as defined in
 ``DEFAULT_GROWTH_STAGE`` and ``DEFAULT_PERSONALITY_VECTOR``.
+
+## Emotion States
+
+Standard emotion tags used across the system include:
+
+``happy, sad, angry, fear, surprise, disgust, calm, excited, tired, bored, confused, shy, neutral``.
+
+系统预定义的情绪标签涵盖常见的快乐、悲伤、生气、恐惧、惊讶、厌恶、平静、兴奋、疲惫、无聊、困惑、害羞以及中性状态。
 
 ## LLM Prompt Templates
 
@@ -183,8 +210,17 @@ python service.py
 ```
 
 Send a `POST` request to `http://localhost:8000/interact` with a JSON body
-containing the fields described above. The response always includes non-empty
-`text`, `voice`, `action`, `expression` and `audio` values.
+containing the fields described above.  The reply JSON has the following
+structure and all fields are non-empty:
+
+```json
+{
+  "text": "你好，很高兴见到你！",
+  "audio": "audio_001.wav",
+  "action": ["wave_hand", "smile"],
+  "expression": "happy"
+}
+```
 
 ## Testing
 
