@@ -157,3 +157,12 @@ class SemanticMemory:
         results = [candidates[i] for i in top_indices]
         logger.debug("Linear search results: %s", results)
         return results  # 返回按距离排序的结果
+
+    def last_mood(self, user_id: str | None = None) -> str | None:
+        """Return the most recent mood tag for a user."""
+
+        # 返回给定用户最近一次对话的情绪标签
+        candidates = [r for r in self.records if user_id is None or r.get("user_id") == user_id]
+        if not candidates:
+            return None
+        return candidates[-1].get("mood_tag")
