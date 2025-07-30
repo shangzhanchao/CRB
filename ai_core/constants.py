@@ -44,6 +44,11 @@ ROBOT_ID_WHITELIST = ["robotA", "robotB"]
 DEFAULT_RMS_ANGRY = 5000
 DEFAULT_RMS_CALM = 1000
 
+# Word lists used for simple text emotion detection
+# 文本情绪检测的正负词表
+POSITIVE_WORDS = ["happy", "great", "love", "good", "excited"]
+NEGATIVE_WORDS = ["angry", "hate", "bad", "sad", "upset"]
+
 # Facial animation mapping for each mood 表情动画对应
 FACE_ANIMATION_MAP = {
     "happy": (
