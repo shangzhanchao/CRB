@@ -194,6 +194,8 @@ class DialogueEngine:
 
         # TTS generates an audio URL when service is provided
         audio_url = call_tts(response, self.tts_url) if self.tts_url else ""
+        if not audio_url:
+            audio_url = "n/a"  # 保证音频字段不为空
 
         logger.info("Generated response: %s", response)
 
