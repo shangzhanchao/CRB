@@ -16,6 +16,7 @@ growth to produce spoken replies, actions and facial expressions.
 
 from dataclasses import dataclass
 from typing import Optional, Tuple
+import asyncio
 import logging
 
 from .dialogue_engine import DialogueEngine, DialogueResponse
@@ -89,13 +90,19 @@ class IntelligentCore:
         self.asr_url = asr_url
 
     def _resolve_paths(self, user: UserInput) -> Tuple[str, str]:
-        """Return audio and image paths with fallbacks."""
+        """Return audio and image paths with fallbacks.
+
+        返回解析第一位可选路径，如不提供则使用默认文件。
+        """
         audio = user.audio_path or DEFAULT_AUDIO_PATH
         image = user.image_path or DEFAULT_IMAGE_PATH
         return audio, image
 
     def _ensure_text(self, user: UserInput, audio_path: str) -> None:
-        """Fill ``user.text`` by ASR or empty string when missing."""
+        """Fill ``user.text`` by ASR or empty string when missing.
+
+        当用户没有提供文本时，若指定 ASR 服务会自动识别语音，否则使用空字符代替。
+        """
         if user.text:
             return
         if self.asr_url:
@@ -108,7 +115,10 @@ class IntelligentCore:
             logger.debug("No text input; defaulting to empty string")
 
     def _perceive(self, audio_path: str, image_or_video: str, text: str) -> Tuple[str, str]:
-        """Return (mood, user_id) from multimodal perception."""
+        """Return (mood, user_id) from multimodal perception.
+
+        输入音频、图像或视频以及文本，通过情绪识别系统返回情绪标签和认证的用户ID。
+        """
 
         user_id = self.emotion.recognize_identity(audio_path)
         emotion_state = self.emotion.perceive(
@@ -173,4 +183,39 @@ class IntelligentCore:
         logger.info("Response text: %s", response.text)
 
         # response contains text, action, expression and optional audio URL
+        return response
+
+    async def process_async(self, user: UserInput) -> DialogueResponse:
+        """Asynchronous version using async service APIs."""
+
+        logger.info("Async processing for robot %s", user.robot_id)
+        from . import global_state
+
+        if not global_state.is_robot_allowed(user.robot_id):
+            raise ValueError(
+                f"Robot ID '{user.robot_id}' is not allowed. 请检查机器人编号是否在白名单内"
+            )
+        audio_path, image_path = self._resolve_paths(user)
+        if not user.text and self.asr_url:
+            from .service_api import async_call_asr
+
+            user.text = await async_call_asr(audio_path, self.asr_url)
+        else:
+            user.text = user.text or ""
+
+        img_or_video = user.video_path or image_path
+        mood, user_id = self._perceive(audio_path, img_or_video, user.text)
+        if not user_id or user_id == "unknown":
+            user_id = f"guest_{global_state.INTERACTION_COUNT + 1}"
+
+        global_state.increment()
+        global_state.add_audio_duration(audio_path)
+
+        response = self.dialogue.generate_response(
+            user.text,
+            mood_tag=mood,
+            user_id=user_id,
+            touched=user.touch_zone is not None,
+            touch_zone=user.touch_zone,
+        )
         return response
