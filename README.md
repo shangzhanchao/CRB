@@ -47,15 +47,14 @@ the system can fully function:
 - **LLM** (`llm.szc.com`) – generate richer replies.
   This endpoint is referenced by ``DEFAULT_LLM_URL`` and is essential for
   advanced features such as story telling and emotion-aware responses.
+- **Memory DB** (`memory-save.szc.com` & `memory-query.szc.com`) – store and query dialogues.
 - **TTS** (`tts.szc.com`) – synthesize reply audio.
 
-外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL`` 和
+外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。默认的 ``llm.szc.com`` 用于解释情绪和生成多模态回复，是系统核心依赖。
 ``TTS_URL`` 自定义，方便接入不同的厂商。默认的 ``llm.szc.com`` 用于解释情绪
 和生成多模态回复，是系统核心依赖。
 
-Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via
-environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL`` and
-``TTS_URL``.
+Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL``, ``TTS_URL``, ``MEMORY_SAVE_URL`` and ``MEMORY_QUERY_URL``.
 
 All modules emit informative logs controlled by ``LOG_LEVEL`` which defaults
 to ``INFO``. Running the demo configures the logging system accordingly.
@@ -77,6 +76,13 @@ ai_core/
   service_clients.py    - 调用外部 ASR/LLM/TTS 服务的工具
   constants.py          - 全局常量與默認值
 demo.py                - 命令行演示脚本
+### Constants Overview
+The file `ai_core/constants.py` groups configuration values:
+- **Service endpoints**: ASR, TTS, LLM, voiceprint and memory URLs.
+- **Default files**: demo audio/image paths.
+- **Growth stage thresholds**: days, interaction counts and audio duration.
+- **Personality defaults**: initial OCEAN vector and behavior mapping.
+这些常量便于集中管理，可根据实际部署场景调整。
 ```
 
 ## Architecture Overview
@@ -89,6 +95,7 @@ demo.py                - 命令行演示脚本
    information for voice, action and facial expression.
 3. **IntelligentCore** orchestrates the pipeline: emotion recognition → model
    feedback → personality growth → voice generation, storing each dialog in the
+   Each step may call remote services defined in `service_clients.py`.
    memory cloud.
 4. `global_state.INTERACTION_COUNT` 和 `AUDIO_DATA_SECONDS` track how much the
    robot has interacted and how much speech data it has processed. These
@@ -113,6 +120,7 @@ interaction counts and audio duration:
 2. **enlighten** (3-10 days or <20 interactions/300s audio) – mimics simple
    greetings like “你好”.
 3. **resonate** (10-30 days or <50 interactions/900s audio) – short caring
+Growth stage selection decides which prompt template is used and therefore changes the style of every reply.
    sentences and basic questions.
 4. **awaken** (30+ days and enough data) – remembers conversations and offers
 proactive suggestions.
@@ -139,6 +147,7 @@ feedback:
   short English hints so the LLM knows the robot's maturity level.
 - **Personality prompts** describe the five traits – Openness, Conscientiousness,
   Extraversion, Agreeableness and Neuroticism – letting the model choose a tone
+These templates are defined in `constants.py` and can be extended for different languages.
   such as "curious" or "reliable".
 - **Touch prompts** indicate which sensor was triggered: head, back or chest.
 
@@ -159,6 +168,7 @@ encode facial animation cues while actions describe body motions:
 | shy / 害羞 | 偏头、眼神回避 → 面部红晕、语音柔化、微幅震颤 | idle + subtle tremble |
 | excited / 兴奋 | 眼神放大、频繁眨眼 → 快速摆头、双手前伸动作 | 快速摇头, 手前伸 |
 | surprised / 惊讶 | 抬头张眼 → 头部抬起，双手急速抬高 | 抬头+双手抬高>25° |
+The mapping table below can be modified to fit different hardware capabilities.
 
 When the robot is touched, an additional action such as ``hug`` or ``pat`` is
 appended according to the touch zone.
@@ -174,11 +184,13 @@ server knows which device issued the request. All other fields may be omitted
 (``None``) and internal defaults will be used:
 
 * ``audio_path`` – path to the user's voice recording (may be ``None``)
+* ``user_id`` – optional speaker ID recognized from voiceprint service
 * ``image_path`` – optional face image
 * ``text`` – recognized or typed text
 * ``video_path`` – optional video file analysed like an image
 * ``touched`` – whether a touch sensor was activated
 * ``touch_zone`` – integer ID of the touched area for more granular feedback
+When values are missing, IntelligentCore will call the ASR and memory services defined in `constants.py`.
 * ``robot_id`` – ID of the robot sending the request **(required)**
 
 All parameters except ``robot_id`` are optional. When they are ``None`` the
@@ -191,8 +203,16 @@ system falls back to internal demo files.
 
 在整体流程上，用户的语音、触摸或图像首先进入 ``IntelligentCore``，随后依次经历情绪识别、语义记忆检索、人格成长以及成长式对话生成，最终输出语音合成链接、动作指令及表情标签，实现“感知 → 思考 → 行动”的闭环。
 
+### Code Execution Flow
+1. Start the Python service or demo.
+2. ``IntelligentCore`` collects audio, image and touch data.
+3. ``EmotionPerception`` calls ASR, voiceprint and LLM services to determine user ID and mood.
+4. ``SemanticMemory`` sends records to the memory service and retrieves related history.
+5. ``PersonalityEngine`` updates the OCEAN vector which, along with the growth stage, shapes LLM prompts.
+6. ``DialogueEngine`` queries the LLM and TTS services to produce text and audio.
+7. The result includes action and facial animation tags.
+成长阶段直接左右最终输出，使对话风格随互动次数与语音数据量逐步进化。
 ## Usage
-
 Run `python demo.py --robot robotA` and start typing messages. Optional
 arguments let you specify audio, image or video files to test multimodal input.
 Type `quit` to exit.
@@ -205,6 +225,8 @@ Type `quit` to exit.
 
 You can also run a lightweight HTTP server as a unified entry point:
 
+The web service loads `IntelligentCore` and forwards each request so all remote modules are triggered in sequence.
+该 HTTP 服务加载 IntelligentCore，将请求依次传入情绪识别、记忆服务和对话生成模块。
 ```bash
 python service.py
 ```
@@ -230,4 +252,4 @@ Unit tests are provided for each core module. Execute them with:
 python -m unittest discover -s tests
 ```
 
-运行以上命令即可验证各模块和整体系统的基本功能。
+运行以上命令即可验证各模块和整体系统的基本功能
