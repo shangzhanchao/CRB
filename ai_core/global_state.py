@@ -18,6 +18,7 @@ from .constants import (
     INITIAL_INTERACTIONS,
     INITIAL_AUDIO_SECONDS,
     STAGE_THRESHOLDS,  # 成长阶段阈值参数
+    STAGE_ORDER,       # 成长阶段顺序
     LOG_LEVEL,
     ROBOT_ID_WHITELIST,  # 允许的机器人编号
 )
@@ -91,23 +92,21 @@ def get_growth_stage() -> str:
         logger.debug("Using default growth stage: %s", DEFAULT_GROWTH_STAGE)
         return DEFAULT_GROWTH_STAGE
 
-    thr = STAGE_THRESHOLDS["sprout"]
-    if days < thr["days"] or INTERACTION_COUNT < thr["interactions"] or AUDIO_DATA_SECONDS < thr["audio_seconds"]:
-        logger.debug("Growth stage sprout")
-        return "sprout"  # 萌芽期
+    for stage in STAGE_ORDER[:-1]:
+        thr = STAGE_THRESHOLDS.get(stage)
+        if not thr:
+            continue
+        if (
+            days < thr["days"]
+            or INTERACTION_COUNT < thr["interactions"]
+            or AUDIO_DATA_SECONDS < thr["audio_seconds"]
+        ):
+            logger.debug("Growth stage %s", stage)
+            return stage
 
-    thr = STAGE_THRESHOLDS["enlighten"]
-    if days < thr["days"] or INTERACTION_COUNT < thr["interactions"] or AUDIO_DATA_SECONDS < thr["audio_seconds"]:
-        logger.debug("Growth stage enlighten")
-        return "enlighten"  # 启蒙期
-
-    thr = STAGE_THRESHOLDS["resonate"]
-    if days < thr["days"] or INTERACTION_COUNT < thr["interactions"] or AUDIO_DATA_SECONDS < thr["audio_seconds"]:
-        logger.debug("Growth stage resonate")
-        return "resonate"  # 共鸣期
-
-    logger.debug("Growth stage awaken")
-    return "awaken"  # 觉醒期
+    final_stage = STAGE_ORDER[-1]
+    logger.debug("Growth stage %s", final_stage)
+    return final_stage  # 觉醒期
 
 
 def reset() -> None:
@@ -121,3 +120,45 @@ def reset() -> None:
     AUDIO_DATA_SECONDS = INITIAL_AUDIO_SECONDS
     START_TIME = datetime.datetime.now(datetime.timezone.utc)
     logger.debug("Global state reset")
+
+
+def save_state(path: str) -> None:
+    """Persist global counters to a JSON file.
+
+    将当前全局统计数据保存到 JSON 文件。
+    """
+
+    import json
+
+    data = {
+        "interaction_count": INTERACTION_COUNT,
+        "audio_seconds": AUDIO_DATA_SECONDS,
+        "start_time": START_TIME.isoformat(),
+    }
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh)
+    logger.info("Global state saved to %s", path)
+
+
+def load_state(path: str) -> None:
+    """Load global counters from a JSON file if present.
+
+    从 JSON 文件中恢复全局统计数据（若文件存在）。
+    """
+
+    import json
+    import os
+
+    if not os.path.exists(path):
+        logger.warning("State file %s not found", path)
+        return
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    global INTERACTION_COUNT, AUDIO_DATA_SECONDS, START_TIME
+    INTERACTION_COUNT = int(data.get("interaction_count", INITIAL_INTERACTIONS))
+    AUDIO_DATA_SECONDS = float(data.get("audio_seconds", INITIAL_AUDIO_SECONDS))
+    try:
+        START_TIME = datetime.datetime.fromisoformat(data.get("start_time"))
+    except Exception:
+        START_TIME = datetime.datetime.now(datetime.timezone.utc)
+    logger.info("Global state loaded from %s", path)
