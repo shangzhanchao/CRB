@@ -25,7 +25,8 @@ try:
 except ImportError:  # pragma: no cover
     faiss = None
 
-from .constants import LOG_LEVEL
+from .constants import LOG_LEVEL, DEFAULT_MEMORY_SAVE_URL, DEFAULT_MEMORY_QUERY_URL
+from .service_api import call_memory_save, call_memory_query
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -37,7 +38,7 @@ class SemanticMemory:
     基于向量的语义记忆模块，可选择使用 FAISS 加速。
     """
 
-    def __init__(self, vector_dim: int = 384, use_faiss: bool | None = None) -> None:
+    def __init__(self, vector_dim: int = 384, use_faiss: bool | None = None, save_url: str | None = DEFAULT_MEMORY_SAVE_URL, query_url: str | None = DEFAULT_MEMORY_QUERY_URL) -> None:
         """Initialize memory store and optional FAISS index.
 
         初始化记忆存储及 FAISS 索引（如果可用）。
@@ -49,9 +50,15 @@ class SemanticMemory:
         use_faiss: bool | None, optional
             Whether to use FAISS for similarity search. ``None`` 代表自动判断
             (如果已安装 FAISS 就使用)。
+        save_url: str | None, optional
+            Remote service to store memory records. 记忆存储服务地址。
+        query_url: str | None, optional
+            Remote service to query memory records. 记忆查询服务地址。
         """
         self.vector_dim = vector_dim  # 向量维度
         self.records: List[Dict[str, Any]] = []  # 存储对话记录
+        self.save_url = save_url
+        self.query_url = query_url
         if use_faiss is None:
             use_faiss = faiss is not None
         if use_faiss and faiss is not None:
@@ -117,6 +124,8 @@ class SemanticMemory:
         logger.debug("Memory added: %s", record)
         if self.index is not None and np is not None:
             self.index.add(np.expand_dims(np.array(vec, dtype="float32"), 0))
+        if self.save_url:
+            call_memory_save(record, self.save_url)
         
     def query_memory(
         self, prompt: str, top_k: int = 3, user_id: str | None = None
@@ -137,6 +146,10 @@ class SemanticMemory:
         """
         query_vec = self._embed(prompt)
         logger.debug("Querying memory for: %s", prompt)
+        if self.query_url:
+            res = call_memory_query(prompt, top_k, self.query_url)
+            if res is not None:
+                return res
         candidates = (
             [r for r in self.records if user_id is None or r.get("user_id") == user_id]
         )
@@ -157,6 +170,35 @@ class SemanticMemory:
         results = [candidates[i] for i in top_indices]
         logger.debug("Linear search results: %s", results)
         return results  # 返回按距离排序的结果
+
+    def save(self, path: str) -> None:
+        """Save memory records to a JSON file.
+
+        将所有记忆记录保存到 JSON 文件，方便持久化存储。
+        """
+        import json
+
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(self.records, fh, default=str, ensure_ascii=False)
+        logger.info("Memory saved to %s", path)
+
+    def load(self, path: str) -> None:
+        """Load memory records from a JSON file.
+
+        从 JSON 文件恢复历史记忆记录。
+        """
+        import json
+
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                self.records = json.load(fh)
+        except FileNotFoundError:
+            logger.warning("Memory file %s not found", path)
+            self.records = []
+        if self.index is not None and np is not None and self.records:
+            vecs = [r["topic_vector"] for r in self.records]
+            self.index.add(np.array(vecs, dtype="float32"))
+        logger.info("Loaded %d memory records", len(self.records))
 
     def last_mood(self, user_id: str | None = None) -> str | None:
         """Return the most recent mood tag for a user."""
