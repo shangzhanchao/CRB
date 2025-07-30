@@ -17,6 +17,10 @@ DEFAULT_VOICEPRINT_URL = os.environ.get("VOICEPRINT_URL", "https://voiceprint.sz
 DEFAULT_MEMORY_SAVE_URL = os.environ.get("MEMORY_SAVE_URL", "https://memory-save.szc.com")
 DEFAULT_MEMORY_QUERY_URL = os.environ.get("MEMORY_QUERY_URL", "https://memory-query.szc.com")
 
+# Local fallback file when remote memory service is unavailable
+# 远程记忆服务不可用时使用的本地备份文件
+LOCAL_MEMORY_PATH = "memory_backup.json"
+
 
 # Growth stage default 默认成长阶段
 DEFAULT_GROWTH_STAGE = "enlighten"
