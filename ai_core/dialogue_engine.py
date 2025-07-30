@@ -109,6 +109,20 @@ class DialogueEngine:
             self.stage = DEFAULT_GROWTH_STAGE
         logger.debug("Dialogue engine initialized at stage %s", self.stage)
 
+    def _infer_behavior_tag(self, text: str, mood: str) -> str | None:
+        """Infer behavior tag from text and mood."""
+
+        text_l = text.lower()
+        if mood == "angry" or "bad" in text_l:
+            return "criticism"
+        if mood in ("happy", "excited") or "thanks" in text_l:
+            return "praise"
+        if "joke" in text_l or "haha" in text_l:
+            return "joke"
+        if mood == "sad":
+            return "support"
+        return None
+
     def generate_response(
         self,
         user_text: str,
@@ -148,6 +162,9 @@ class DialogueEngine:
         self.personality.update(mood_tag)
         if touched:
             self.personality.update("touch")
+        behavior_tag = self._infer_behavior_tag(user_text, mood_tag)
+        if behavior_tag:
+            self.personality.update(behavior_tag)
         # 2. determine growth stage using global metrics
         # 根据全局统计信息判断成长阶段
         self.stage = global_state.get_growth_stage()
