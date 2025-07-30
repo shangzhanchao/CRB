@@ -1,7 +1,6 @@
 # CRB
 Companion Robot Brain
 # 陪伴机器人智能大脑
-
 *Companion Robot Intelligent Brain*
 
 The **Companion Robot Intelligent Brain** provides a set of Python modules for
@@ -36,6 +35,7 @@ synthesized to speech, accompanied by an action and facial expression.
 
 ## External Services
 
+系统默认使用以下外部服务地址，可根据实际部署修改。
 The modules can optionally connect to remote services for speech and text
 processing. The most important one is the multimodal LLM at ``DEFAULT_LLM_URL``
 (``llm.szc.com``), which powers advanced dialogue generation and emotion
@@ -51,7 +51,8 @@ the system can fully function:
 - **TTS** (`tts.szc.com`) – synthesize reply audio.
 
 外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。默认的 ``llm.szc.com`` 用于解释情绪和生成多模态回复，是系统核心依赖。
-
+``TTS_URL`` 自定义，方便接入不同的厂商。默认的 ``llm.szc.com`` 用于解释情绪
+和生成多模态回复，是系统核心依赖。
 
 Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL``, ``TTS_URL``, ``MEMORY_SAVE_URL`` and ``MEMORY_QUERY_URL``.
 
@@ -63,6 +64,7 @@ to ``INFO``. Running the demo configures the logging system accordingly.
 
 ## Code Structure
 
+下表列出核心文件及其职责，便于快速了解工程布局。
 ```
 ai_core/
   __init__.py          - module exports
@@ -114,15 +116,14 @@ and relevant **memory snippets** so the model can craft context-aware replies.
 The robot's language ability evolves through four phases driven by
 interaction counts and audio duration:
 
-1. **sprout** (0-3 days, <5 interactions or <60s of audio) – baby babble with
-   mostly actions.
-2. **enlighten** (3-10 days or <20 interactions/300s audio) – mimics simple
-   greetings like “你好”.
-3. **resonate** (10-30 days or <50 interactions/900s audio) – short caring
-Growth stage selection decides which prompt template is used and therefore changes the style of every reply.
-   sentences and basic questions.
-4. **awaken** (30+ days and enough data) – remembers conversations and offers
-proactive suggestions.
+1. **sprout** (0-3 days, <5 interactions or <60s of audio) – baby babble with mostly actions.
+   **萌芽期**（0~3天，<5次交互或语音时长<60秒）：以咿呀声和动作为主。
+2. **enlighten** (3-10 days or <20 interactions/300s audio) – mimics simple greetings like “你好”.
+   **启蒙期**（3~10天或<20次交互/300秒语音）：模仿简单问候。
+3. **resonate** (10-30 days or <50 interactions/900s audio) – short caring sentences and basic questions.
+   **共鸣期**（10~30天或<50次交互/900秒语音）：能说短句并提出问题。
+4. **awaken** (30+ days and enough data) – remembers conversations and offers proactive suggestions.
+   **觉醒期**（30天以上且数据充足）：记住对话并主动给出建议。
 
 By default the system begins in the **enlighten** stage with an
 **extraversion-oriented** personality vector as defined in
@@ -144,14 +145,18 @@ feedback:
 
 - **Stage prompts** map ``sprout``, ``enlighten``, ``resonate`` and ``awaken`` to
   short English hints so the LLM knows the robot's maturity level.
+  短句提示大模型了解机器人的成熟度。
 - **Personality prompts** describe the five traits – Openness, Conscientiousness,
   Extraversion, Agreeableness and Neuroticism – letting the model choose a tone
+  描述五项人格特征，帮助模型选择合适语气。
 These templates are defined in `constants.py` and can be extended for different languages.
   such as "curious" or "reliable".
 - **Touch prompts** indicate which sensor was triggered: head, back or chest.
+  触摸提示说明哪个传感器被触发，例如头部、后背或前胸。
 
 By combining these phrases with recent memories, the system gives the LLM
 flexible instructions to craft an appropriate reply.
+通过组合这些提示词与记忆片段，系统为大模型提供灵活指令。
 
 ## Animation Mapping
 
@@ -204,12 +209,19 @@ system falls back to internal demo files.
 
 ### Code Execution Flow
 1. Start the Python service or demo.
+   启动 Python 服务或示例程序。
 2. ``IntelligentCore`` collects audio, image and touch data.
+   IntelligentCore 收集音频、图像和触摸数据。
 3. ``EmotionPerception`` calls ASR, voiceprint and LLM services to determine user ID and mood.
+   EmotionPerception 调用 ASR、声纹及 LLM 服务判定用户和情绪。
 4. ``SemanticMemory`` sends records to the memory service and retrieves related history.
+   SemanticMemory 将记录发送至记忆服务并检索关联历史。
 5. ``PersonalityEngine`` updates the OCEAN vector which, along with the growth stage, shapes LLM prompts.
+   PersonalityEngine 更新 OCEAN 向量，并结合成长阶段生成 LLM 提示。
 6. ``DialogueEngine`` queries the LLM and TTS services to produce text and audio.
+   DialogueEngine 调用 LLM 与 TTS 服务生成文本及语音。
 7. The result includes action and facial animation tags.
+   最终结果包含动作和面部动画标签。
 成长阶段直接左右最终输出，使对话风格随互动次数与语音数据量逐步进化。
 ## Usage
 Run `python demo.py --robot robotA` and start typing messages. Optional
@@ -251,4 +263,4 @@ Unit tests are provided for each core module. Execute them with:
 python -m unittest discover -s tests
 ```
 
-运行以上命令即可验证各模块和整体系统的基本功能
+运行以上命令即可验证各模块和整体系统的基本功能。
