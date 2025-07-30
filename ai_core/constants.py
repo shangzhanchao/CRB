@@ -9,17 +9,27 @@ DEFAULT_AUDIO_PATH = "voice.wav"
 DEFAULT_IMAGE_PATH = "face.png"
 
 # Default service endpoints 服务地址
-DEFAULT_TTS_URL = os.environ.get("TTS_URL", "https://tts.szc.com")
-DEFAULT_ASR_URL = os.environ.get("ASR_URL", "https://asr.szc.com")
-DEFAULT_LLM_URL = os.environ.get("LLM_URL", "https://llm.szc.com")
-DEFAULT_VOICEPRINT_URL = os.environ.get("VOICEPRINT_URL", "https://voiceprint.szc.com")
+DEFAULT_TTS_URL = os.environ.get("TTS_URL", "https://tts.e-inv.cn")
+DEFAULT_ASR_URL = os.environ.get("ASR_URL", "https://asr.e-inv.cn")
+DEFAULT_LLM_URL = os.environ.get("LLM_URL", "https://llm.e-inv.cn")
+DEFAULT_VOICEPRINT_URL = os.environ.get("VOICEPRINT_URL", "https://voiceprint.e-inv.cn")
 # Data storage service endpoints 数据存取服务
-DEFAULT_MEMORY_SAVE_URL = os.environ.get("MEMORY_SAVE_URL", "https://memory-save.szc.com")
-DEFAULT_MEMORY_QUERY_URL = os.environ.get("MEMORY_QUERY_URL", "https://memory-query.szc.com")
+DEFAULT_MEMORY_SAVE_URL = os.environ.get(
+    "MEMORY_SAVE_URL", "https://memory-save.e-inv.cn"
+)
+DEFAULT_MEMORY_QUERY_URL = os.environ.get(
+    "MEMORY_QUERY_URL", "https://memory-query.e-inv.cn"
+)
 
 # Local fallback file when remote memory service is unavailable
 # 远程记忆服务不可用时使用的本地备份文件
 LOCAL_MEMORY_PATH = "memory_backup.json"
+# SQLite database path for persistent memory storage
+# 用于持久化记忆的 SQLite 数据库文件
+MEMORY_DB_PATH = "memory.db"
+
+# Global state persistence file 全局状态持久化文件
+STATE_FILE = "state.json"
 
 
 # Growth stage default 默认成长阶段
