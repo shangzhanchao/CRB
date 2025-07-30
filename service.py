@@ -1,6 +1,9 @@
 """Simple HTTP entry point for the companion robot brain.
 
 简易 HTTP 服务入口，统一处理外部请求。
+
+Example request JSON::
+    {"robot_id": "robotA", "text": "hello"}
 """
 
 from __future__ import annotations
@@ -31,16 +34,10 @@ def handle_request(payload: Dict[str, Any]):
         video_path=video,
         text=text,
         robot_id=robot_id,
-        touched=zone is not None,
         touch_zone=zone,
     )
     reply = core.process(user)
-    return {
-        "text": reply.text,
-        "action": reply.action,
-        "expression": reply.expression,
-        "audio": reply.audio,
-    }
+    return reply.as_dict()
 
 
 class _Handler(BaseHTTPRequestHandler):
