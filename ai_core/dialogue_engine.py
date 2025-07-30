@@ -58,6 +58,18 @@ class DialogueResponse:
     action: list[str]
     expression: str
 
+    def as_dict(self) -> dict:
+        """Convert to plain dictionary.
+
+        转换为普通字典以便序列化输出。
+        """
+        return {
+            "text": self.text,
+            "audio": self.audio,
+            "action": self.action,
+            "expression": self.expression,
+        }
+
 
 class DialogueEngine:
     """Dialogue system that grows with interactions.
@@ -121,6 +133,12 @@ class DialogueEngine:
         touch_zone: int | None, optional
             Identifier for the touch sensor zone. ``None`` means no touch
             detected.
+
+        Returns
+        -------
+        DialogueResponse
+            Reply with text, audio URL, action list and expression name. All
+            fields are guaranteed to be non-empty.
         """
         logger.info(
             "Generating response for user %s with mood %s", user_id, mood_tag
