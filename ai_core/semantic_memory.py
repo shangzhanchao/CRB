@@ -125,7 +125,10 @@ class SemanticMemory:
         if self.index is not None and np is not None:
             self.index.add(np.expand_dims(np.array(vec, dtype="float32"), 0))
         if self.save_url:
-            call_memory_save(record, self.save_url)
+            ok = call_memory_save(record, self.save_url)
+            if not ok:
+                logger.info(
+                    "Remote memory service failed; record kept locally.")
         
     def query_memory(
         self, prompt: str, top_k: int = 3, user_id: str | None = None
