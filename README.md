@@ -44,17 +44,17 @@ synthesized to speech, accompanied by an action and facial expression.
 
 The modules can optionally connect to remote services for speech and text
 processing. The most important one is the multimodal LLM at ``DEFAULT_LLM_URL``
-(``llm.e-inv.cn``), which powers advanced dialogue generation and emotion
+(``llm.szc.com``), which powers advanced dialogue generation and emotion
 interpretation.  If you deploy your own LLM service, point ``LLM_URL`` to it so
 the system can fully function:
 
-- **ASR** (`asr.e-inv.cn`) – convert user audio to text.  语音识别服务
-- **Voiceprint** (`voiceprint.e-inv.cn`) – identify the speaker.  声纹识别服务
-- **LLM** (`llm.e-inv.cn`) – generate richer replies.  此地址在 ``DEFAULT_LLM_URL`` 中设定，用于故事讲述和情绪理解等高级功能
-- **Memory DB** (`memory-save.e-inv.cn` & `memory-query.e-inv.cn`) – store and query dialogues. If these services are unreachable, records will be saved to `memory.db` locally and queries will read from that file.  对话记录存取服务
-- **TTS** (`tts.e-inv.cn`) – synthesize reply audio.  语音合成服务
+- **ASR** (`asr.szc.com`) – convert user audio to text.  语音识别服务
+- **Voiceprint** (`voiceprint.szc.com`) – identify the speaker.  声纹识别服务
+- **LLM** (`llm.szc.com`) – generate richer replies.  此地址在 ``DEFAULT_LLM_URL`` 中设定，用于故事讲述和情绪理解等高级功能
+- **Memory DB** (`memory-save.szc.com` & `memory-query.szc.com`) – store and query dialogues. If these services are unreachable, records will be saved to `memory.db` locally and queries will read from that file.  对话记录存取服务
+- **TTS** (`tts.szc.com`) – synthesize reply audio.  语音合成服务
 
-外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。其中 ``llm.e-inv.cn`` 是系统生成回复和理解情绪的核心依赖。
+外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。其中 ``llm.szc.com`` 是系统生成回复和理解情绪的核心依赖。
 
 Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL``, ``TTS_URL``, ``MEMORY_SAVE_URL`` and ``MEMORY_QUERY_URL``.
 
