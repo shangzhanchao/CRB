@@ -50,7 +50,7 @@ def main() -> None:
         )
         reply = core.process(user)
         print("AI:", reply.text)
-        print(f"voice={reply.voice} action={reply.action} expression={reply.expression} audio={reply.audio}")
+        print(f"action={reply.action} expression={reply.expression} audio={reply.audio}")
 
 
 if __name__ == "__main__":
