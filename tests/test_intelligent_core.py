@@ -10,11 +10,11 @@ class TestIntelligentCore(unittest.TestCase):
             image_path='face.png',
             text='Hi',
             robot_id='robotA',
-            touched=True,
             touch_zone=1,
         )
         reply = core.process(user)
         self.assertIsInstance(reply.text, str)
+        self.assertIsInstance(reply.action, list)
         self.assertEqual(global_state.INTERACTION_COUNT, 1)
         self.assertEqual(core.dialogue.memory.records[-1]['touch_zone'], 1)
 
