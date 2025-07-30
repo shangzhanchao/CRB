@@ -11,6 +11,7 @@ import datetime
 import os
 import urllib.request
 import logging
+import asyncio
 from typing import Any, Dict, Optional
 
 from .constants import (
@@ -45,6 +46,12 @@ def _post(url: str, payload: Dict[str, Any], timeout: int = 5) -> Optional[Dict[
         return None
 
 
+async def _post_async(url: str, payload: Dict[str, Any], timeout: int = 5) -> Optional[Dict[str, Any]]:
+    """Async wrapper for :func:`_post` using a thread."""
+
+    return await asyncio.to_thread(_post, url, payload, timeout)
+
+
 def call_asr(audio_path: str, url: str = DEFAULT_ASR_URL) -> str:
     """Call ASR service and return transcribed text.
 
@@ -54,6 +61,15 @@ def call_asr(audio_path: str, url: str = DEFAULT_ASR_URL) -> str:
     if res and isinstance(res.get("text"), str):
         return res["text"]
     return os.path.splitext(os.path.basename(audio_path))[0]
+
+
+async def async_call_asr(audio_path: str, url: str = DEFAULT_ASR_URL) -> str:
+    """Asynchronous version of :func:`call_asr`.
+
+    :func:`call_asr` 的异步版本，便于高度并发场景下使用。
+    """
+
+    return await asyncio.to_thread(call_asr, audio_path, url)
 
 
 def call_tts(text: str, url: str = DEFAULT_TTS_URL) -> str:
@@ -67,6 +83,15 @@ def call_tts(text: str, url: str = DEFAULT_TTS_URL) -> str:
     return ""
 
 
+async def async_call_tts(text: str, url: str = DEFAULT_TTS_URL) -> str:
+    """Asynchronous version of :func:`call_tts`.
+
+    用于语音同步生成之异步调用，可防止 I/O 阻塞。
+    """
+
+    return await asyncio.to_thread(call_tts, text, url)
+
+
 def call_llm(prompt: str, url: str = DEFAULT_LLM_URL) -> str:
     """Request completion from LLM service.
 
@@ -76,6 +101,15 @@ def call_llm(prompt: str, url: str = DEFAULT_LLM_URL) -> str:
     if res and isinstance(res.get("text"), str):
         return res["text"]
     return ""
+
+
+async def async_call_llm(prompt: str, url: str = DEFAULT_LLM_URL) -> str:
+    """Asynchronous version of :func:`call_llm`.
+
+    导入异步执行，从而提升多进程环境下的效率。
+    """
+
+    return await asyncio.to_thread(call_llm, prompt, url)
 
 
 def call_voiceprint(audio_path: str, url: str = DEFAULT_VOICEPRINT_URL) -> str:
@@ -88,6 +122,15 @@ def call_voiceprint(audio_path: str, url: str = DEFAULT_VOICEPRINT_URL) -> str:
         return res["user_id"]
     name = os.path.splitext(os.path.basename(audio_path))[0]
     return name or "unknown"
+
+
+async def async_call_voiceprint(audio_path: str, url: str = DEFAULT_VOICEPRINT_URL) -> str:
+    """Asynchronous version of :func:`call_voiceprint`.
+
+    对声纹识别依赖网络请求时非常有用。
+    """
+
+    return await asyncio.to_thread(call_voiceprint, audio_path, url)
 
 
 def call_memory_save(
@@ -125,6 +168,19 @@ def call_memory_save(
     return False
 
 
+async def async_call_memory_save(
+    record: Dict[str, Any],
+    url: str = DEFAULT_MEMORY_SAVE_URL,
+    fallback_path: str = LOCAL_MEMORY_PATH,
+) -> bool:
+    """Asynchronous wrapper for :func:`call_memory_save`.
+
+    将记录以异步方式传输至记忆服务，避免网络阻塞导致程序停止等待。
+    """
+
+    return await asyncio.to_thread(call_memory_save, record, url, fallback_path)
+
+
 def call_memory_query(
     prompt: str,
     top_k: int = 3,
@@ -145,3 +201,19 @@ def call_memory_query(
         return None
     hits = [r for r in data if prompt in r.get("user_text", "")]
     return hits[:top_k]
+
+
+async def async_call_memory_query(
+    prompt: str,
+    top_k: int = 3,
+    url: str = DEFAULT_MEMORY_QUERY_URL,
+    fallback_path: str = LOCAL_MEMORY_PATH,
+) -> Optional[list[Dict[str, Any]]]:
+    """Asynchronous wrapper for :func:`call_memory_query`.
+
+    在多并发场景下可以实现更多请求的异步处理。
+    """
+
+    return await asyncio.to_thread(
+        call_memory_query, prompt, top_k, url, fallback_path
+    )
