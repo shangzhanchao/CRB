@@ -13,6 +13,10 @@ DEFAULT_TTS_URL = os.environ.get("TTS_URL", "https://tts.szc.com")
 DEFAULT_ASR_URL = os.environ.get("ASR_URL", "https://asr.szc.com")
 DEFAULT_LLM_URL = os.environ.get("LLM_URL", "https://llm.szc.com")
 DEFAULT_VOICEPRINT_URL = os.environ.get("VOICEPRINT_URL", "https://voiceprint.szc.com")
+# Data storage service endpoints 数据存取服务
+DEFAULT_MEMORY_SAVE_URL = os.environ.get("MEMORY_SAVE_URL", "https://memory-save.szc.com")
+DEFAULT_MEMORY_QUERY_URL = os.environ.get("MEMORY_QUERY_URL", "https://memory-query.szc.com")
+
 
 # Growth stage default 默认成长阶段
 DEFAULT_GROWTH_STAGE = "enlighten"
@@ -44,10 +48,46 @@ ROBOT_ID_WHITELIST = ["robotA", "robotB"]
 DEFAULT_RMS_ANGRY = 5000
 DEFAULT_RMS_CALM = 1000
 
+# Whether to use a multimodal model for emotion recognition
+# 是否启用多模态模型进行情绪识别
+DEFAULT_USE_MODEL = False
+
 # Word lists used for simple text emotion detection
 # 文本情绪检测的正负词表
 POSITIVE_WORDS = ["happy", "great", "love", "good", "excited"]
 NEGATIVE_WORDS = ["angry", "hate", "bad", "sad", "upset"]
+
+# Standard emotion categories 行业通用情绪分类
+EMOTION_STATES = [
+    "neutral",       # 中性
+    "happy",         # 开心
+    "sad",           # 难过
+    "angry",         # 生气
+    "fear",          # 恐惧
+    "surprise",      # 惊讶
+    "disgust",       # 厌恶
+    "calm",          # 平静
+    "excited",       # 兴奋
+    "tired",         # 疲惫
+    "bored",         # 无聊
+    "confused",      # 困惑
+    "shy",           # 害羞
+]
+
+# LLM prompt template for emotion recognition
+# 情绪识别的大模型提示模板
+EMOTION_PROMPT_TEMPLATE = (
+    "Identify the user's emotion from this text using one of the following tags: "
+    "{options}. Text: '{text}'"
+)
+
+# Prompt template for multimodal emotion recognition
+# 多模态情绪识别提示词模板
+MULTI_MODAL_EMOTION_PROMPT = (
+    "Identify the user's emotion from the given audio and image using one of the"
+    " following tags: {options}. Audio file: {audio}. Image file: {image}. Text:"
+    " '{text}'"
+)
 
 # Facial animation mapping for each mood 表情动画对应
 FACE_ANIMATION_MAP = {
