@@ -9,13 +9,15 @@ building an AI companion. The core components include:
 
 - **PersonalityEngine**: tracks OCEAN personality traits with momentum decay.  \
   **人格成长引擎：** 使用动量衰减维护 OCEAN 五维人格。
-- **SemanticMemory**: stores conversation history in a vector database using
-  hashed embeddings for lightweight semantic search.  \
-  **语义记忆系统：** 基于哈希向量存储并检索对话记录。
+- **SemanticMemory**: stores conversation history in a SQLite database.
+  sentence-transformer embeddings are used when available, falling back to
+  hashed vectors. Records persist in SQLite so memories survive restarts.  \
+  **语义记忆系统：** 采用 SQLite 数据库存储对话记录，优先使用
+  sentence-transformer 生成语义向量，如库缺失则退化为哈希向量。
 - **EmotionPerception**: recognizes emotions from voice and face inputs.
-  It supports a *simple* heuristic fusion mode and a *model-based* mode that
-  sends a multimodal prompt to the LLM.  \
-  **情绪感知模块：** 可通过规则或多模态大模型识别情绪。
+  It integrates optional speech emotion models and face-expression classifiers with fallbacks to heuristics or an LLM-based approach.
+  **情绪感知模块：** 可结合语音情绪识别库和人脸表情分类器；若模型不可用，
+  则退化为简单规则或调用大模型.(待重新规划)
 - **DialogueEngine**: generates responses based on personality and memory and
   evolves from cold start to active interaction.  \
   **成长式对话系统：** 结合人格与记忆生成风格化回复。
@@ -42,17 +44,17 @@ synthesized to speech, accompanied by an action and facial expression.
 
 The modules can optionally connect to remote services for speech and text
 processing. The most important one is the multimodal LLM at ``DEFAULT_LLM_URL``
-(``llm.szc.com``), which powers advanced dialogue generation and emotion
+(``llm.e-inv.cn``), which powers advanced dialogue generation and emotion
 interpretation.  If you deploy your own LLM service, point ``LLM_URL`` to it so
 the system can fully function:
 
-- **ASR** (`asr.szc.com`) – convert user audio to text.  语音识别服务
-- **Voiceprint** (`voiceprint.szc.com`) – identify the speaker.  声纹识别服务
-- **LLM** (`llm.szc.com`) – generate richer replies.  此地址在 ``DEFAULT_LLM_URL`` 中设定，用于讲述和情绪理解等高级功能
-- **Memory DB** (`memory-save.szc.com` & `memory-query.szc.com`) – store and query dialogues. If these services are unreachable, records will be saved to `memory_backup.json` locally and queries will read from that file.  对话记录存取服务
-- **TTS** (`tts.szc.com`) – synthesize reply audio.  语音合成服务
+- **ASR** (`asr.e-inv.cn`) – convert user audio to text.  语音识别服务
+- **Voiceprint** (`voiceprint.e-inv.cn`) – identify the speaker.  声纹识别服务
+- **LLM** (`llm.e-inv.cn`) – generate richer replies.  此地址在 ``DEFAULT_LLM_URL`` 中设定，用于故事讲述和情绪理解等高级功能
+- **Memory DB** (`memory-save.e-inv.cn` & `memory-query.e-inv.cn`) – store and query dialogues. If these services are unreachable, records will be saved to `memory.db` locally and queries will read from that file.  对话记录存取服务
+- **TTS** (`tts.e-inv.cn`) – synthesize reply audio.  语音合成服务
 
-外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。其中 ``llm.szc.com`` 是系统生成回复和理解情绪的核心依赖。
+外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。其中 ``llm.e-inv.cn`` 是系统生成回复和理解情绪的核心依赖。
 
 Service URLs can be supplied to :class:`~ai_core.IntelligentCore` or set via environment variables ``ASR_URL``, ``VOICEPRINT_URL``, ``LLM_URL``, ``TTS_URL``, ``MEMORY_SAVE_URL`` and ``MEMORY_QUERY_URL``.
 
@@ -84,6 +86,7 @@ The file `ai_core/constants.py` groups configuration values:
 - **Growth stage thresholds**: days, interaction counts and audio duration for each stage.
 - **Stage order**: `STAGE_ORDER` lists `sprout → enlighten → resonate → awaken`.
 - **Personality defaults**: initial OCEAN vector and behavior mapping.
+- **SQLite DB path**: location of the persistent store `MEMORY_DB_PATH`.
 这些常量便于集中管理，可根据实际部署场景调整。
 ```
 
@@ -100,9 +103,9 @@ The file `ai_core/constants.py` groups configuration values:
    feedback → personality growth → voice generation, storing each dialog in the
    memory cloud. Each step may call remote services defined in
    `service_api.py`.
-   是此系统的中心组件，负责统一管理输入数据、依次
+   **IntelligentCore 是此系统的中心组件，负责统一管理输入数据、依次
    调度情绪识别、记忆查询和对话生成等模块，确保从感知到回应的流程
-   连贯执行，最终输出语音、动作与表情反馈。
+   连贯执行，最终输出语音、动作与表情反馈。**
 4. `global_state.INTERACTION_COUNT` 和 `AUDIO_DATA_SECONDS` track how much the
    robot has interacted and how much speech data it has processed. These
    metrics unlock growth stages.  \
@@ -129,6 +132,10 @@ interaction counts and audio duration:
    **共鸣期**（10~30天或<50次交互/900秒语音）：能说短句并提出问题。
 4. **awaken** (30+ days and enough data) – remembers conversations and offers proactive suggestions.
    **觉醒期**（30天以上且数据充足）：记住对话并主动给出建议。
+
+The current stage and metrics persist automatically to ``state.json`` so
+progress continues after restarting the program. Call
+``global_state.get_growth_metrics()`` to visualize counts in your own UI.
 
 By default the system begins in the **enlighten** stage with an
 **extraversion-oriented** personality vector as defined in
@@ -252,13 +259,15 @@ Type `quit` to exit.
 
 ## HTTP Service
 
-You can also run a lightweight HTTP server as a unified entry point:
+You can also run an asynchronous HTTP service based on **FastAPI**:
 
-The web service loads `IntelligentCore` and forwards each request so all remote modules are triggered in sequence.
-该 HTTP 服务加载 `IntelligentCore`，依次调用情绪识别、记忆查询与对话生成模块，
-确保外部服务按顺序工作，便于与其它系统集成。
+The service relies on asynchronous wrappers in ``service_api.py`` so
+external calls will not block processing. If ``FastAPI`` is missing the
+synchronous :func:`handle_request` can still be used in your own server.
+
+The web application loads `IntelligentCore` and forwards requests so all modules run in sequence.  该 HTTP 服务基于 FastAPI 实现，依次调用情绪识别、记忆查询与对话生成模块。
 ```bash
-python service.py
+uvicorn service:app --reload
 ```
 
 Send a `POST` request to `http://localhost:8000/interact` with a JSON body
