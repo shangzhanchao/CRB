@@ -16,8 +16,9 @@ calm, excited, tired, bored, confused, shy and neutral.
 
 import os
 import wave
-import audioop
 import logging
+from math import sqrt
+from array import array
 from dataclasses import dataclass
 from collections import Counter
 from typing import Optional
@@ -35,6 +36,36 @@ except Exception:  # pragma: no cover - library missing
 from .semantic_memory import SemanticMemory
 from .personality_engine import PersonalityEngine
 from .service_api import call_llm
+
+
+def calculate_rms(frames: bytes, sampwidth: int) -> float:
+    """Return RMS amplitude of raw audio frames.
+
+    计算原始音频帧的均方根幅值，兼容不再提供 ``audioop`` 模块的环境。
+
+    Parameters
+    ----------
+    frames: bytes
+        Raw audio data. 原始音频数据
+    sampwidth: int
+        Bytes per sample. 每个采样点的字节数
+    """
+    if not frames:
+        return 0.0
+    try:
+        import numpy as np  # type: ignore
+
+        dtype = {1: np.int8, 2: np.int16, 4: np.int32}.get(sampwidth, np.int16)
+        data = np.frombuffer(frames, dtype=dtype).astype(np.float64)
+        return float(np.sqrt(np.mean(data ** 2)))
+    except Exception:  # pragma: no cover - numpy may be missing
+        # Fallback using array module
+        fmt = {1: 'b', 2: 'h', 4: 'i'}.get(sampwidth, 'h')
+        arr = array(fmt)
+        arr.frombytes(frames)
+        squares = (sample * sample for sample in arr)
+        mean_sq = sum(squares) / len(arr)
+        return sqrt(mean_sq)
 
 
 @dataclass
@@ -209,7 +240,7 @@ class EmotionPerception:
         try:
             with wave.open(audio_path, "rb") as wf:
                 frames = wf.readframes(wf.getnframes())
-                rms = audioop.rms(frames, wf.getsampwidth())
+                rms = calculate_rms(frames, wf.getsampwidth())
             if rms > self.rms_angry:
                 return "angry"
             if rms < self.rms_calm:
