@@ -4,32 +4,35 @@
 
 import os
 
+# Absolute path to the project root 用于生成示例文件的绝对路径
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Default file paths for demos 默认的示例文件路径
-DEFAULT_AUDIO_PATH = "voice.wav"
-DEFAULT_IMAGE_PATH = "face.png"
+DEFAULT_AUDIO_PATH = os.path.join(BASE_DIR, "..", "voice.wav")
+DEFAULT_IMAGE_PATH = os.path.join(BASE_DIR, "..", "face.png")
 
 # Default service endpoints 服务地址
-DEFAULT_TTS_URL = os.environ.get("TTS_URL", "https://tts.e-inv.cn")
-DEFAULT_ASR_URL = os.environ.get("ASR_URL", "https://asr.e-inv.cn")
-DEFAULT_LLM_URL = os.environ.get("LLM_URL", "https://llm.e-inv.cn")
-DEFAULT_VOICEPRINT_URL = os.environ.get("VOICEPRINT_URL", "https://voiceprint.e-inv.cn")
+DEFAULT_TTS_URL = os.environ.get("TTS_URL", "https://tts.szc.com")
+DEFAULT_ASR_URL = os.environ.get("ASR_URL", "https://asr.szc.com")
+DEFAULT_LLM_URL = os.environ.get("LLM_URL", "https://llm.szc.com")
+DEFAULT_VOICEPRINT_URL = os.environ.get("VOICEPRINT_URL", "https://voiceprint.szc.com")
 # Data storage service endpoints 数据存取服务
 DEFAULT_MEMORY_SAVE_URL = os.environ.get(
-    "MEMORY_SAVE_URL", "https://memory-save.e-inv.cn"
+    "MEMORY_SAVE_URL", "https://memory-save.szc.com"
 )
 DEFAULT_MEMORY_QUERY_URL = os.environ.get(
-    "MEMORY_QUERY_URL", "https://memory-query.e-inv.cn"
+    "MEMORY_QUERY_URL", "https://memory-query.szc.com"
 )
 
 # Local fallback file when remote memory service is unavailable
 # 远程记忆服务不可用时使用的本地备份文件
-LOCAL_MEMORY_PATH = "memory_backup.json"
+LOCAL_MEMORY_PATH = os.path.join(BASE_DIR, "..", "memory_backup.json")
 # SQLite database path for persistent memory storage
 # 用于持久化记忆的 SQLite 数据库文件
-MEMORY_DB_PATH = "memory.db"
+MEMORY_DB_PATH = os.path.join(BASE_DIR, "..", "memory.db")
 
 # Global state persistence file 全局状态持久化文件
-STATE_FILE = "state.json"
+STATE_FILE = os.path.join(BASE_DIR, "..", "state.json")
 
 
 # Growth stage default 默认成长阶段
