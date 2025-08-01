@@ -36,7 +36,7 @@ robot interacts more with the user. The result is text that can be
 synthesized to speech, accompanied by an action and facial expression.
 
 简要而言，陪伴机器人会接受语音、触摸与摄像头画面等输入，智能大脑把它们转化为情绪
-与语义，再通过大模型生成符合成长阶段和人格的回复，最终输出文本、语音、动作和表情。
+与语义，再通过提示词融合引擎智能组合成长阶段、人格特质、记忆上下文等因素，通过大模型生成符合成长阶段和人格的回复，最终输出文本、语音、动作和表情。
 
 ## External Services
 
@@ -50,7 +50,7 @@ the system can fully function:
 - **ASR** (`asr.szc.com`) – convert user audio to text.  语音识别服务
 - **Voiceprint** (`voiceprint.szc.com`) – identify the speaker.  声纹识别服务
 - **LLM** (`llm.szc.com`) – generate richer replies.  此地址在 ``DEFAULT_LLM_URL`` 中设定，用于故事讲述和情绪理解等高级功能
-- **Memory DB** (`memory-save.szc.com` & `memory-query.szc.com`) – store and query dialogues. If these services are unreachable, records will be saved to `memory.db` locally and queries will read from that file.  对话记录存取服务
+- **Memory DB** (`memory-save.szc.com` & `memory-query.szc.com`) – store and query dialogues with vector-based semantic search. If these services are unreachable, records will be saved to `memory.db` locally and queries will read from that file.  对话记录存取服务，支持基于向量的语义搜索
 - **TTS** (`tts.szc.com`) – synthesize reply audio.  语音合成服务
 
 外部服务也可以通过环境变量 ``ASR_URL``、``VOICEPRINT_URL``、``LLM_URL``、``TTS_URL``、``MEMORY_SAVE_URL``、``MEMORY_QUERY_URL`` 自定义，方便接入不同的厂商。其中 ``llm.szc.com`` 是系统生成回复和理解情绪的核心依赖。
@@ -76,7 +76,7 @@ ai_core/
   intelligent_core.py   - 子模块调度与总入口
   global_state.py       - 全局交互计数与语音时长
   service_api.py        - 调用外部 ASR/LLM/TTS 服务的工具，可直接导入使用，无需单独启动
-  constants.py          - 全局常量與默認值
+  constants.py          - 全局常量与默认值
   prompt_fusion.py      - 提示词融合算法
 demo.py                - 命令行演示脚本
 ### Constants Overview
@@ -88,6 +88,7 @@ The file `ai_core/constants.py` groups configuration values:
 - **Stage order**: `STAGE_ORDER` lists `sprout → enlighten → resonate → awaken`.
 - **Personality defaults**: initial OCEAN vector and behavior mapping.
 - **SQLite DB path**: location of the persistent store `MEMORY_DB_PATH`.
+- **Prompt fusion weights**: memory, personality, and emotion factor weights for optimized prompt generation.
 这些常量便于集中管理，可根据实际部署场景调整。
 ```
 
@@ -134,7 +135,7 @@ interaction counts and audio duration:
 3. **resonate** (10-30 days or <50 interactions/900s audio) – short caring sentences and basic questions.
    **共鸣期**（10~30天或<50次交互/900秒语音）：能说短句并提出问题。
 4. **awaken** (30+ days and enough data) – remembers conversations and offers proactive suggestions.
-   **觉醒期**（30天以上且数据充足）：记住对话并主动给出建议。
+   **觉醒期**（30天以上且数据充足）：记住对话并主动给出建议，能够基于历史记忆进行个性化对话。
 
 The current stage and metrics persist automatically to ``state.json`` so
 progress continues after restarting the program. Call
@@ -169,6 +170,20 @@ These templates are defined in `constants.py` and can be extended for different 
   触摸提示说明哪个传感器被触发，例如头部、后背或前胸。
 - **Memory prompts** provide context from previous conversations, helping the LLM generate more personalized and context-aware responses.
   记忆提示提供历史对话上下文，帮助LLM生成更个性化和情境感知的回复。
+
+The **PromptFusionEngine** intelligently combines these factors using weighted fusion algorithms:
+- **Growth stage factor**: weight=1.5, priority=5 (highest)
+- **Personality traits factor**: weight=1.2, priority=4
+- **User emotion factor**: weight=1.0, priority=3
+- **Memory summary factor**: weight=0.6, priority=1
+- **User input factor**: weight=2.0, priority=6 (required)
+
+**提示词融合引擎**使用加权融合算法智能组合这些因素：
+- **成长阶段因子**：权重=1.5，优先级=5（最高）
+- **人格特质因子**：权重=1.2，优先级=4
+- **用户情绪因子**：权重=1.0，优先级=3
+- **记忆摘要因子**：权重=0.6，优先级=1
+- **用户输入因子**：权重=2.0，优先级=6（必需）
 
 By intelligently combining these factors with recent memories, the **PromptFusionEngine** gives the LLM
 flexible instructions to craft an appropriate reply.
@@ -225,7 +240,7 @@ default to demo data when ``None``.
 陪伴机器人智能大脑提供一系列用于构建 AI 陪伴机器人的 Python 模块，代码内含中英双语注释，方便理解和二次开发。
 系统使用向量化语义记忆检索，情绪识别则结合语音强度、文本情感、面部表情及已有的人格与记忆信息进行多模态分析。系统依据累计交互次数与语音时长解锁"萌芽→启蒙→共鸣→觉醒"四个阶段，触摸交互时会给出声音、动作和表情反馈，持续更新"性格树"与"记忆云"。
 
-在整体流程上，用户的语音、触摸或图像首先进入 ``IntelligentCore``，随后依次经历情绪识别、语义记忆检索、人格成长以及成长式对话生成，最终输出语音合成链接、动作指令及表情标签，实现"感知 → 思考 → 行动"的闭环。
+在整体流程上，用户的语音、触摸或图像首先进入 ``IntelligentCore``，随后依次经历情绪识别、语义记忆检索、人格成长、提示词融合以及成长式对话生成，最终输出语音合成链接、动作指令及表情标签，实现"感知 → 思考 → 行动"的闭环。系统通过智能记忆摘要和提示词融合算法，确保每次对话都能基于历史记忆进行个性化回复。
 
 ### Code Execution Flow
 1. Start the Python service or demo.
@@ -244,7 +259,10 @@ default to demo data when ``None``.
    DialogueEngine 调用 LLM 与 TTS 服务生成文本及语音。
 8. The result includes action and facial animation tags.
    最终结果包含动作和面部动画标签。
-成长阶段直接左右最终输出，使对话风格随互动次数与语音数据量逐步进化。
+9. The conversation is stored in memory for future reference.
+   对话记录存储到记忆中供未来参考。
+
+成长阶段和记忆系统共同影响最终输出，使对话风格随互动次数与语音数据量逐步进化，同时保持个性化记忆。
 ## Usage
 Run `python demo.py --robot_id robotA` and start typing messages. Optional
 arguments let you specify text, audio, image or video files as well as a touch
@@ -360,32 +378,3 @@ python -m unittest discover -s tests
 
 运行以上命令即可验证各模块和整体系统的基本功能。
 
-## Memory System Features
-
-The semantic memory system provides:
-- **Vector-based retrieval**: Uses sentence-transformers or hash-based vectors for semantic similarity search
-- **Context-aware responses**: Incorporates previous conversation history into LLM prompts
-- **Emotion tracking**: Records user emotional states with each interaction
-- **Persistent storage**: SQLite database ensures memories survive restarts
-- **Intelligent summarization**: Creates rich memory summaries with user input, AI responses, and emotional context
-
-**语义记忆系统特性：**
-- **基于向量的检索**：使用sentence-transformers或哈希向量进行语义相似度搜索
-- **情境感知回复**：将历史对话上下文融入LLM提示词
-- **情绪追踪**：记录每次交互的用户情绪状态
-- **持久化存储**：SQLite数据库确保记忆在重启后依然保留
-- **智能摘要**：创建包含用户输入、AI回复和情绪上下文的丰富记忆摘要
-
-### Recent Improvements
-
-**记忆系统优化**：
-- ✅ 修复了记忆摘要生成逻辑，确保记忆信息能够正确传递给LLM
-- ✅ 优化了提示词融合算法，智能组合各种影响因素
-- ✅ 改进了记忆因子创建逻辑，即使记忆摘要为空也能创建基础记忆因子
-- ✅ 增强了记忆权重和优先级设置，确保记忆在对话中的合理影响
-
-**Memory System Optimizations**:
-- ✅ Fixed memory summary generation logic to ensure memory information is correctly passed to LLM
-- ✅ Optimized prompt fusion algorithm to intelligently combine various influencing factors
-- ✅ Improved memory factor creation logic to create basic memory factors even when summaries are empty
-- ✅ Enhanced memory weight and priority settings to ensure appropriate memory influence in conversations
