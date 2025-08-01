@@ -8,7 +8,7 @@ async def call_dou_bao_stream(question, history_parm,agent):
         agent="你是一个强大的智能助手，擅长提供准确的信息"
 
     client = OpenAI(
-        # api_key="6ce4cff6-c3fa-4729-bca7-3955f4eca16c",
+        # api_key="6ce4cff6-c3f",
         api_key = "key",
         base_url="https://ark.cn-beijing.volces.com/api/v3",
     )
