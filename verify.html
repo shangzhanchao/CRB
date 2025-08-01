@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CRB Verification</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:20px;max-width:800px}
+section{margin-bottom:20px}
+label{display:block;margin-top:8px}
+input,select,button{padding:6px;font-size:14px}
+#preview video,#preview audio{width:100%;margin-top:6px}
+#result{white-space:pre-wrap;background:#f8f8f8;padding:10px;border:1px solid #ccc}
+.record-btn{margin-right:5px}
+.close-btn{background-color:#ff4444;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-left:5px}
+.close-btn:hover{background-color:#cc0000}
+.progress-container{display:none;margin:20px 0;padding:10px;background-color:#f0f0f0;border-radius:5px}
+.progress-bar{width:100%;height:20px;background-color:#ddd;border-radius:10px;overflow:hidden}
+.progress-fill{height:100%;background-color:#4CAF50;width:0%;transition:width 0.3s ease}
+.progress-text{margin-top:5px;text-align:center;font-weight:bold}
+.status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.status-active{background-color:#4CAF50}
+.status-inactive{background-color:#ccc}
+</style>
+</head>
+<body>
+<h1>CRB Interaction Demo</h1>
+<section id="input">
+  <label>Robot ID
+    <input id="robot_id" value="robotA" required>
+  </label>
+  <label>Text
+    <input id="text" placeholder="Enter text here">
+  </label>
+  <label>Touch Zone
+    <select id="touch_zone">
+      <option value="">none</option>
+      <option value="0">head</option>
+      <option value="1">back</option>
+      <option value="2">chest</option>
+    </select>
+  </label>
+  <h3>Audio <span class="status-indicator status-inactive" id="audio-status"></span>
+    <button class="close-btn" id="close-audio" style="display:none">关闭麦克风</button>
+  </h3>
+  <button class="record-btn" id="start-audio">Record</button>
+  <button class="record-btn" id="stop-audio" disabled>Stop</button>
+  <audio id="audio" controls></audio>
+  <input type="file" id="audio_file" accept="audio/*">
+  <input type="hidden" id="audio_path">
+  <h3>Video <span class="status-indicator status-inactive" id="video-status"></span>
+    <button class="close-btn" id="close-video" style="display:none">关闭摄像头</button>
+  </h3>
+  <video id="video_preview" autoplay muted style="width:100%;max-height:200px"></video>
+  <button class="record-btn" id="start-video">Record</button>
+  <button class="record-btn" id="stop-video" disabled>Stop</button>
+  <video id="video" controls style="display:none"></video>
+  <input type="file" id="video_file" accept="video/*">
+  <input type="hidden" id="video_path">
+  <h3>Image</h3>
+  <input type="file" id="image_file" accept="image/*">
+  <input type="hidden" id="image_path">
+  <button id="send">Send</button>
+</section>
+
+<!-- 进度条容器 -->
+<div class="progress-container" id="progress-container">
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+  <div class="progress-text" id="progress-text">正在处理请求...</div>
+</div>
+
+<section id="output">
+  <h2>Result</h2>
+  <div id="preview"></div>
+  <pre id="result">Waiting for response...</pre>
+</section>
+<script>
+const audioFile = document.getElementById('audio_file');
+const videoFile = document.getElementById('video_file');
+const imageFile = document.getElementById('image_file');
+const audioPath = document.getElementById('audio_path');
+const videoPath = document.getElementById('video_path');
+const imagePath = document.getElementById('image_path');
+
+// 进度条相关元素
+const progressContainer = document.getElementById('progress-container');
+const progressFill = document.getElementById('progress-fill');
+const progressText = document.getElementById('progress-text');
+
+// 状态指示器
+const audioStatus = document.getElementById('audio-status');
+const videoStatus = document.getElementById('video-status');
+
+// 关闭按钮
+const closeAudioBtn = document.getElementById('close-audio');
+const closeVideoBtn = document.getElementById('close-video');
+
+// 媒体流变量
+let audioStream = null;
+let videoStream = null;
+
+// 显示进度条
+function showProgress() {
+  progressContainer.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressText.textContent = '正在处理请求...';
+  
+  // 模拟进度更新
+  let progress = 0;
+  const progressInterval = setInterval(() => {
+    progress += Math.random() * 15;
+    if (progress > 90) progress = 90;
+    progressFill.style.width = progress + '%';
+  }, 200);
+  
+  return progressInterval;
+}
+
+// 隐藏进度条
+function hideProgress() {
+  progressContainer.style.display = 'none';
+}
+
+// 更新状态指示器
+function updateStatus(element, isActive) {
+  element.className = isActive ? 'status-indicator status-active' : 'status-indicator status-inactive';
+}
+
+// 关闭音频流
+function closeAudioStream() {
+  if (audioStream) {
+    audioStream.getTracks().forEach(track => track.stop());
+    audioStream = null;
+    updateStatus(audioStatus, false);
+    closeAudioBtn.style.display = 'none';
+    document.getElementById('audio').src = '';
+    audioPath.value = '';
+  }
+}
+
+// 关闭视频流
+function closeVideoStream() {
+  if (videoStream) {
+    videoStream.getTracks().forEach(track => track.stop());
+    videoStream = null;
+    updateStatus(videoStatus, false);
+    closeVideoBtn.style.display = 'none';
+    document.getElementById('video_preview').srcObject = null;
+    document.getElementById('video').src = '';
+    videoPath.value = '';
+  }
+}
+
+// 绑定关闭按钮事件
+closeAudioBtn.onclick = closeAudioStream;
+closeVideoBtn.onclick = closeVideoStream;
+
+async function upload(url, file){
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch(url, {method:'POST', body:fd});
+  const data = await res.json();
+  return data.path;
+}
+
+audioFile.onchange = async()=>{
+  if(audioFile.files.length) audioPath.value = await upload('/upload/audio', audioFile.files[0]);
+};
+
+videoFile.onchange = async()=>{
+  if(videoFile.files.length) videoPath.value = await upload('/upload/video', videoFile.files[0]);
+};
+
+imageFile.onchange = async()=>{
+  if(imageFile.files.length) imagePath.value = await upload('/upload/image', imageFile.files[0]);
+};
+
+// audio recording
+let audioRecorder, audioChunks=[];
+const startAudio=document.getElementById('start-audio');
+const stopAudio=document.getElementById('stop-audio');
+
+startAudio.onclick=async()=>{
+  try {
+    audioStream = await navigator.mediaDevices.getUserMedia({audio:true});
+    updateStatus(audioStatus, true);
+    closeAudioBtn.style.display = 'inline-block';
+    
+    audioRecorder=new MediaRecorder(audioStream);
+    audioRecorder.ondataavailable=e=>audioChunks.push(e.data);
+    audioRecorder.onstop=async()=>{
+      const blob=new Blob(audioChunks,{type:'audio/webm'});
+      document.getElementById('audio').src=URL.createObjectURL(blob);
+      audioPath.value=await upload('/upload/audio', blob);
+      audioChunks=[];
+      // 不在这里停止流，让用户手动关闭
+    };
+    audioRecorder.start();
+    startAudio.disabled=true;
+    stopAudio.disabled=false;
+  } catch (error) {
+    alert('无法访问麦克风: ' + error.message);
+  }
+};
+
+stopAudio.onclick=()=>{
+  if (audioRecorder) {
+    audioRecorder.stop();
+    startAudio.disabled=false;
+    stopAudio.disabled=true;
+  }
+};
+
+// video recording
+let videoRecorder, videoChunks=[];
+const startVideo=document.getElementById('start-video');
+const stopVideo=document.getElementById('stop-video');
+
+startVideo.onclick=async()=>{
+  try {
+    videoStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+    updateStatus(videoStatus, true);
+    closeVideoBtn.style.display = 'inline-block';
+    
+    document.getElementById('video_preview').srcObject=videoStream;
+    videoRecorder=new MediaRecorder(videoStream);
+    videoRecorder.ondataavailable=e=>videoChunks.push(e.data);
+    videoRecorder.onstop=async()=>{
+      document.getElementById('video_preview').srcObject=null;
+      const blob=new Blob(videoChunks,{type:'video/webm'});
+      const vid=document.getElementById('video');
+      vid.style.display='block';
+      vid.src=URL.createObjectURL(blob);
+      videoPath.value=await upload('/upload/video', blob);
+      videoChunks=[];
+      // 不在这里停止流，让用户手动关闭
+    };
+    videoRecorder.start();
+    startVideo.disabled=true;
+    stopVideo.disabled=false;
+  } catch (error) {
+    alert('无法访问摄像头: ' + error.message);
+  }
+};
+
+stopVideo.onclick=()=>{
+  if (videoRecorder) {
+    videoRecorder.stop();
+    startVideo.disabled=false;
+    stopVideo.disabled=true;
+  }
+};
+
+// send interaction
+const sendBtn=document.getElementById('send');
+sendBtn.onclick=async()=>{
+  const payload={
+    robot_id:document.getElementById('robot_id').value,
+    text:document.getElementById('text').value||undefined,
+    audio_path:audioPath.value||undefined,
+    image_path:imagePath.value||undefined,
+    video_path:videoPath.value||undefined
+  };
+  const zone=document.getElementById('touch_zone').value;
+  if(zone!=='')payload.touch_zone=parseInt(zone);
+  
+  // 显示进度条
+  const progressInterval = showProgress();
+  
+  try {
+    const res=await fetch('/interact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const out=await res.json();
+    
+    // 完成进度条
+    progressFill.style.width = '100%';
+    progressText.textContent = '请求完成';
+    
+    document.getElementById('preview').innerHTML='';
+    if(out.audio && out.audio!=='n/a'){
+      document.getElementById('preview').innerHTML+=`<audio controls src="${out.audio}"></audio>`;
+    }
+    document.getElementById('result').textContent=JSON.stringify(out,null,2);
+  } catch (error) {
+    progressText.textContent = '请求失败: ' + error.message;
+    document.getElementById('result').textContent = 'Error: ' + error.message;
+  } finally {
+    // 延迟隐藏进度条
+    setTimeout(() => {
+      hideProgress();
+    }, 1000);
+    clearInterval(progressInterval);
+  }
+};
+</script>
+</body>
+</html>
