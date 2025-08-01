@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class DoubaoService:
     """豆包服务类"""
     
-    def __init__(self, api_key: str = "4b76f73c-147f-419c-9f30-4e916c47d111", 
+    def __init__(self, api_key: str = "4b76f73c-key", 
                  base_url: str = "https://ark.cn-beijing.volces.com/api/v3",
                  model: str = "ep-20250604180101-5chxn"):
         self.api_key = api_key
