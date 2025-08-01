@@ -135,7 +135,7 @@ class SemanticMemory:
         """Convert text to a vector using sentence transformers when available.
 
         优先使用 ``sentence-transformers`` 生成真实语义向量，若库或模型缺失
-        则退化为简单哈希向量。"""
+        则退化为改进的哈希向量。"""
 
         logger.debug("Embedding text: %s", text)
         if self.transformer is not None:
@@ -147,16 +147,29 @@ class SemanticMemory:
             except Exception as exc:  # pragma: no cover
                 logger.warning("Transformer embedding failed: %s", exc)
 
-        digest = hashlib.sha256(text.encode("utf-8")).digest()
-        if np is not None:
-            arr = np.frombuffer(digest, dtype=np.uint8).astype("float32") / 255.0
-            if arr.size < self.vector_dim:
-                arr = np.pad(arr, (0, self.vector_dim - arr.size))
-            return arr[: self.vector_dim]
-        vec = [b / 255.0 for b in digest[: self.vector_dim]]
-        if len(vec) < self.vector_dim:
-            vec += [0.0] * (self.vector_dim - len(vec))
-        return vec
+        # 改进的哈希向量生成
+        # 1. 分词处理
+        words = text.lower().split()
+        # 2. 生成词级别的哈希
+        word_hashes = []
+        for word in words:
+            word_hash = hashlib.md5(word.encode("utf-8")).digest()
+            word_hashes.extend([b / 255.0 for b in word_hash[:8]])
+        
+        # 3. 生成句子级别的哈希
+        sentence_hash = hashlib.sha256(text.encode("utf-8")).digest()
+        sentence_vec = [b / 255.0 for b in sentence_hash[:16]]
+        
+        # 4. 组合向量
+        combined_vec = word_hashes + sentence_vec
+        
+        # 5. 调整到目标维度
+        if len(combined_vec) < self.vector_dim:
+            combined_vec += [0.0] * (self.vector_dim - len(combined_vec))
+        else:
+            combined_vec = combined_vec[:self.vector_dim]
+        
+        return combined_vec
 
 
     def add_memory(
@@ -197,7 +210,17 @@ class SemanticMemory:
             "topic_vector": vec,
         }
         self.records.append(record)
-        logger.debug("Memory added: %s", record)
+        
+        # 增强记忆日志输出
+        logger.info("💾 新增记忆记录")
+        logger.info(f"   📝 用户输入: {user_text}")
+        logger.info(f"   🤖 AI回复: {ai_response}")
+        logger.info(f"   😊 情绪标签: {mood_tag}")
+        logger.info(f"   👤 用户ID: {user_id}")
+        logger.info(f"   🤗 触摸状态: {touched}")
+        logger.info(f"   📍 触摸区域: {touch_zone}")
+        logger.info(f"   📊 记忆总数: {len(self.records)}")
+        
         cur = self.conn.cursor()
         cur.execute(
             "INSERT INTO memory VALUES (?,?,?,?,?,?,?,?)",
@@ -245,14 +268,35 @@ class SemanticMemory:
         candidates = [
             r for r in self.records if user_id is None or r.get("user_id") == user_id
         ]
-        # Linear search across stored records 线性搜索历史记录
-        def distance(a, b):
-            return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5  # 欧氏距离
-
-        scores = [distance(r["topic_vector"], query_vec) for r in candidates]
-        top_indices = sorted(range(len(scores)), key=lambda i: scores[i])[:top_k]
+        # 改进的相似度搜索
+        def similarity(a, b):
+            """计算余弦相似度"""
+            dot_product = sum(x * y for x, y in zip(a, b))
+            norm_a = sum(x * x for x in a) ** 0.5
+            norm_b = sum(x * x for x in b) ** 0.5
+            if norm_a == 0 or norm_b == 0:
+                return 0
+            return dot_product / (norm_a * norm_b)
+        
+        # 计算相似度分数
+        scores = [similarity(r["topic_vector"], query_vec) for r in candidates]
+        # 按相似度降序排序（相似度越高越好）
+        top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
         results = [candidates[i] for i in top_indices]
-        logger.debug("Linear search results: %s", results)
+        
+        # 增强记忆查询日志输出
+        logger.info("🔍 记忆查询结果")
+        logger.info(f"   📝 查询内容: {prompt}")
+        logger.info(f"   📊 候选记录数: {len(candidates)}")
+        logger.info(f"   🎯 返回记录数: {len(results)}")
+        if results:
+            logger.info("   📋 相关记忆:")
+            for i, result in enumerate(results, 1):
+                logger.info(f"     {i}. 用户: {result['user_text']}")
+                logger.info(f"        AI: {result['ai_response']}")
+                logger.info(f"        情绪: {result['mood_tag']}")
+                logger.info(f"        时间: {result['time']}")
+        
         return results  # 返回按距离排序的结果
 
     def save_backup(self, path: str) -> None:

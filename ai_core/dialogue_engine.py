@@ -40,6 +40,7 @@ from .constants import (
     OCEAN_LLM_PROMPTS_CN,
     TOUCH_ZONE_PROMPTS,
 )
+from .prompt_fusion import PromptFusionEngine, create_prompt_factors
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -107,6 +108,7 @@ class DialogueEngine:
         self.stage = global_state.get_growth_stage()  # 初始成长阶段
         if not self.stage:
             self.stage = DEFAULT_GROWTH_STAGE
+        self.prompt_fusion = PromptFusionEngine()
         logger.debug("Dialogue engine initialized at stage %s", self.stage)
 
     def _infer_behavior_tag(self, text: str, mood: str) -> str | None:
@@ -170,10 +172,51 @@ class DialogueEngine:
         self.stage = global_state.get_growth_stage()
 
         style = self.personality.get_personality_style()
+        personality_summary = self.personality.get_personality_summary()
+        dominant_traits = self.personality.get_dominant_traits()
+        
         past = self.memory.query_memory(user_text, user_id=user_id)
         logger.debug("Retrieved %d past records", len(past))
-        # 从记忆中取得相关历史回答并简要拼接
-        past_summary = " ".join([p["ai_response"] for p in past])
+        
+        # 优化记忆摘要生成
+        if past:
+            # 过滤掉空回复和无效回复
+            valid_responses = []
+            for p in past:
+                response = p["ai_response"].strip()
+                user_text = p["user_text"].strip()
+                # 确保回复不为空且有意义
+                if response and len(response) > 2 and not response.startswith("[") and user_text:
+                    valid_responses.append({
+                        "user": user_text,
+                        "ai": response,
+                        "mood": p.get("mood_tag", "neutral")
+                    })
+            
+            if valid_responses:
+                # 选择最相关的回复，构建更丰富的记忆摘要
+                best_match = valid_responses[0]
+                past_summary = f"用户说'{best_match['user']}'时，我回复'{best_match['ai']}'"
+                
+                # 如果有多个相关记忆，添加更多上下文
+                if len(valid_responses) > 1:
+                    second_match = valid_responses[1]
+                    past_summary += f"。另外，当用户说'{second_match['user']}'时，我回复'{second_match['ai']}'"
+                
+                # 添加情绪信息
+                mood_counts = {}
+                for resp in valid_responses:
+                    mood = resp.get("mood", "neutral")
+                    mood_counts[mood] = mood_counts.get(mood, 0) + 1
+                
+                if mood_counts:
+                    dominant_mood = max(mood_counts.items(), key=lambda x: x[1])[0]
+                    if dominant_mood != "neutral":
+                        past_summary += f"。这些对话中用户情绪主要是{dominant_mood}"
+            else:
+                past_summary = ""
+        else:
+            past_summary = ""
 
         # 3. generate base response
         if self.stage == "sprout":
@@ -185,23 +228,127 @@ class DialogueEngine:
         else:  # awaken
             base_resp = f"[{style}] Based on our chats: {past_summary} | {user_text}"
 
-        # Construct LLM prompt combining stage, personality and touch info
-        touch_phrase = TOUCH_ZONE_PROMPTS.get(touch_zone, "") if touched else ""
-        trait_phrase = ", ".join(OCEAN_LLM_PROMPTS.values())
-        trait_phrase_cn = "、".join(OCEAN_LLM_PROMPTS_CN.values())
-        stage_phrase = STAGE_LLM_PROMPTS.get(self.stage, "")
-        stage_phrase_cn = STAGE_LLM_PROMPTS_CN.get(self.stage, "")
-        prompt = (
-            f"{stage_phrase} {stage_phrase_cn} "
-            f"Traits: {trait_phrase} ({trait_phrase_cn}). Style: {style}. "
-            f"{touch_phrase} Past: {past_summary}. User: {user_text}"
+        # 使用提示词融合算法构建优化提示词
+        stage_info = {
+            "prompt": f"{STAGE_LLM_PROMPTS.get(self.stage, '')} {STAGE_LLM_PROMPTS_CN.get(self.stage, '')}"
+        }
+        
+        personality_info = {
+            "traits": f"{', '.join(OCEAN_LLM_PROMPTS.values())} ({', '.join(OCEAN_LLM_PROMPTS_CN.values())})",
+            "style": style,
+            "summary": personality_summary,
+            "dominant_traits": dominant_traits
+        }
+        
+        emotion_info = {
+            "emotion": mood_tag
+        }
+        
+        touch_info = {
+            "content": TOUCH_ZONE_PROMPTS.get(touch_zone, "") if touched else ""
+        }
+        
+        memory_info = {
+            "summary": past_summary,
+            "count": len(past)
+        }
+        
+        # 创建提示词因子
+        factors = create_prompt_factors(
+            stage_info=stage_info,
+            personality_info=personality_info,
+            emotion_info=emotion_info,
+            touch_info=touch_info,
+            memory_info=memory_info,
+            user_input=user_text
         )
+        
+        # 使用融合算法生成优化提示词
+        prompt = self.prompt_fusion.fuse_prompts(factors)
+        
+        # 打印详细的提示词信息
+        logger.info("=== LLM Prompt Fusion ===")
+        logger.info(f"Growth Stage: {self.stage}")
+        logger.info(f"Personality Style: {style}")
+        logger.info(f"Personality Summary: {personality_summary}")
+        logger.info(f"Dominant Traits: {dominant_traits}")
+        logger.info(f"Touch Zone: {touch_zone if touched else 'None'}")
+        logger.info(f"User Emotion: {mood_tag}")
+        logger.info(f"Memory Records: {len(past)}")
+        logger.info(f"Memory Summary: {past_summary[:100]}...")
+        logger.info(f"User Input: {user_text}")
+        logger.info(f"Prompt Factors Count: {len(factors)}")
+        logger.info("--- Fused Prompt ---")
+        logger.info(prompt)
+        logger.info("=== End Prompt Fusion ===")
 
         response = base_resp
         if self.llm_url:
-            llm_out = call_llm(prompt, self.llm_url)
-            if llm_out:
-                response = llm_out
+            try:
+                logger.info("=" * 80)
+                logger.info("🤖 LLM调用详细信息")
+                logger.info("=" * 80)
+                logger.info(f"📡 服务类型: {self.llm_url}")
+                logger.info(f"🎯 用户输入: {user_text}")
+                logger.info(f"😊 情绪状态: {mood_tag}")
+                logger.info(f"👤 用户ID: {user_id}")
+                logger.info(f"🤗 触摸状态: {touched}")
+                logger.info(f"📍 触摸区域: {touch_zone if touched else 'None'}")
+                logger.info(f"🌱 成长阶段: {self.stage}")
+                logger.info(f"🎭 人格风格: {style}")
+                logger.info(f"📝 人格摘要: {personality_summary}")
+                logger.info(f"⭐ 主导特质: {', '.join(dominant_traits)}")
+                logger.info(f"💾 记忆记录数: {len(past)}")
+                logger.info(f"📚 记忆摘要: {past_summary[:100]}...")
+                logger.info("-" * 80)
+                logger.info("🔧 优化后的提示词:")
+                logger.info(prompt)
+                logger.info("-" * 80)
+                
+                # 如果是百炼服务，使用异步调用
+                if self.llm_url == "qwen" or self.llm_url == "qwen-service":
+                    import asyncio
+                    from .service_api import async_call_llm
+                    logger.info("🚀 调用百炼API...")
+                    # 检查是否已经在事件循环中
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # 如果已经在事件循环中，使用create_task
+                        task = loop.create_task(async_call_llm(prompt, self.llm_url))
+                        llm_out = task.result()
+                    except RuntimeError:
+                        # 如果没有运行的事件循环，使用run
+                        llm_out = asyncio.run(async_call_llm(prompt, self.llm_url))
+                elif self.llm_url == "doubao":
+                    # 豆包服务需要系统提示词
+                    system_prompt = f"""你是一个智能机器人助手，具有以下特点：
+1. 成长阶段：{self.stage}
+2. 人格特质：{personality_summary}
+3. 主导特质：{', '.join(dominant_traits)}
+4. 当前风格：{style}
+
+请根据用户输入和上下文生成自然、友好的回复。"""
+                    logger.info("🚀 调用豆包API...")
+                    logger.info(f"📋 系统提示词: {system_prompt}")
+                    from .doubao_service import get_doubao_service
+                    service = get_doubao_service()
+                    llm_out = service._call_sync(prompt, system_prompt=system_prompt, history=None)
+                else:
+                    logger.info(f"🚀 调用其他API: {self.llm_url}")
+                    llm_out = call_llm(prompt, self.llm_url)
+                
+                logger.info(f"📤 LLM原始输出: {llm_out}")
+                
+                if llm_out and llm_out.strip():
+                    response = llm_out.strip()
+                    logger.info(f"✅ LLM响应成功: {response[:200]}...")
+                else:
+                    logger.warning("⚠️ LLM返回空响应，使用基础回复")
+            except Exception as e:
+                logger.error(f"❌ LLM调用失败: {e}, 使用基础回复")
+                response = base_resp
+        else:
+            logger.warning("⚠️ 未配置LLM URL，使用基础回复")
 
         # 4. store this interaction in memory
         self.memory.add_memory(
@@ -216,15 +363,35 @@ class DialogueEngine:
 
         # 5. derive action and expression from mood
         mood_key = mood_tag if mood_tag in FACE_ANIMATION_MAP else "happy"
-        face_anim = FACE_ANIMATION_MAP.get(mood_key, ("neutral", ""))
+        face_anim = FACE_ANIMATION_MAP.get(mood_key, ("E000:平静表情", "自然状态、轻微呼吸动作"))
         expression = f"{face_anim[0]} | {face_anim[1]}".strip()
 
-        action = ACTION_MAP.get(mood_key, "idle").split("|")
+        # 获取动作列表，格式：动作编号+动作+角度+说明
+        action_raw = ACTION_MAP.get(mood_key, "A000:breathing|轻微呼吸动作")
+        action_parts = action_raw.split("|")
+        action = []
+        
+        # 将动作字符串解析为结构化动作列表
+        for i in range(0, len(action_parts), 2):
+            if i + 1 < len(action_parts):
+                action_code = action_parts[i].strip()
+                action_desc = action_parts[i + 1].strip()
+                action.append(f"{action_code}|{action_desc}")
+            else:
+                action.append(action_parts[i].strip())
+        
         if touched:
-            # append touch action detail
-            zone_action = {0: "hug", 1: "pat", 2: "tickle"}.get(touch_zone, "hug")
-            action.append(zone_action)
-        logger.debug("Action: %s | Expression: %s", action, expression)
+            # 添加触摸动作
+            touch_actions = {
+                0: "A100:hug|拥抱动作",
+                1: "A101:pat|轻拍动作", 
+                2: "A102:tickle|挠痒动作"
+            }
+            touch_action = touch_actions.get(touch_zone, "A100:hug|拥抱动作")
+            action.append(touch_action)
+        
+        logger.info("🎭 表情输出: %s", expression)
+        logger.info("🤸 动作输出: %s", action)
 
         # TTS generates an audio URL when service is provided
         audio_url = call_tts(response, self.tts_url) if self.tts_url else ""

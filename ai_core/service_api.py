@@ -24,6 +24,8 @@ from .constants import (
     LOCAL_MEMORY_PATH,
     LOG_LEVEL,
 )
+from .qwen_service import get_qwen_service
+from .doubao_service import get_doubao_service
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -57,6 +59,10 @@ def call_asr(audio_path: str, url: str = DEFAULT_ASR_URL) -> str:
 
     调用语音识别服务，若失败则返回文件名（不含扩展名）。
     """
+    if url is None:
+        # 使用本地ASR或返回文件名
+        return os.path.splitext(os.path.basename(audio_path))[0]
+    
     res = _post(url, {"path": audio_path})
     if res and isinstance(res.get("text"), str):
         return res["text"]
@@ -77,6 +83,10 @@ def call_tts(text: str, url: str = DEFAULT_TTS_URL) -> str:
 
     调用语音合成服务，失败则返回空字符串。
     """
+    if url is None:
+        # 使用本地TTS或返回空字符串
+        return ""
+    
     res = _post(url, {"text": text})
     if res and isinstance(res.get("audio_url"), str):
         return res["audio_url"]
@@ -92,24 +102,40 @@ async def async_call_tts(text: str, url: str = DEFAULT_TTS_URL) -> str:
     return await asyncio.to_thread(call_tts, text, url)
 
 
-def call_llm(prompt: str, url: str = DEFAULT_LLM_URL) -> str:
-    """Request completion from LLM service.
-
-    调用大模型服务生成文本，失败则返回空字符串。
-    """
-    res = _post(url, {"prompt": prompt})
-    if res and isinstance(res.get("text"), str):
-        return res["text"]
+def call_llm(prompt: str, url: str = None) -> str:
+    if url == "qwen":
+        service = get_qwen_service()
+        return service._call_sync(prompt, session_id=None, stream=False)
+    elif url == "doubao":
+        service = get_doubao_service()
+        return service._call_sync(prompt, system_prompt=None, history=None)
+    # 其他模型逻辑...
+    logger.warning("call_llm: 非qwen/doubao模型未实现")
     return ""
 
 
-async def async_call_llm(prompt: str, url: str = DEFAULT_LLM_URL) -> str:
-    """Asynchronous version of :func:`call_llm`.
+async def async_call_llm(prompt: str, url: str = None) -> str:
+    if url == "qwen":
+        service = get_qwen_service()
+        return await service.call(prompt, session_id=None, stream=False)
+    elif url == "doubao":
+        service = get_doubao_service()
+        return await service.call(prompt, system_prompt=None, history=None)
+    # 其他模型逻辑...
+    logger.warning("async_call_llm: 非qwen/doubao模型未实现")
+    return ""
 
-    导入异步执行，从而提升多进程环境下的效率。
-    """
 
-    return await asyncio.to_thread(call_llm, prompt, url)
+def call_llm_stream(prompt: str, url: str = None):
+    if url == "qwen":
+        service = get_qwen_service()
+        return service.stream(prompt, session_id=None)
+    elif url == "doubao":
+        service = get_doubao_service()
+        return service.stream(prompt, system_prompt=None, history=None)
+    # 其他模型逻辑...
+    logger.warning("call_llm_stream: 非qwen/doubao模型未实现")
+    return None
 
 
 def call_voiceprint(audio_path: str, url: str = DEFAULT_VOICEPRINT_URL) -> str:
@@ -117,6 +143,11 @@ def call_voiceprint(audio_path: str, url: str = DEFAULT_VOICEPRINT_URL) -> str:
 
     调用声纹识别服务识别说话人，失败时返回文件名或 ``unknown``。
     """
+    if url is None:
+        # 使用本地声纹识别或返回文件名
+        name = os.path.splitext(os.path.basename(audio_path))[0]
+        return name or "unknown"
+    
     res = _post(url, {"path": audio_path})
     if res and isinstance(res.get("user_id"), str):
         return res["user_id"]

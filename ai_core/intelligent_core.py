@@ -80,6 +80,11 @@ class IntelligentCore:
         voiceprint_url: str | None, optional
             Speaker identification service endpoint.
         """
+        # 如果没有提供llm_url，使用默认值
+        if llm_url is None:
+            from .constants import DEFAULT_LLM_URL
+            llm_url = DEFAULT_LLM_URL
+        
         self.dialogue = dialogue or DialogueEngine(llm_url=llm_url, tts_url=tts_url)  # 对话系统
         self.emotion = emotion or EmotionPerception(
             voiceprint_url=voiceprint_url,

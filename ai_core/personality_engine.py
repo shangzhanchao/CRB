@@ -110,6 +110,41 @@ class PersonalityEngine:
         self.logger.debug("Personality style: %s", style)
         return style
 
+    def get_dominant_traits(self) -> list[str]:
+        """Get dominant personality traits based on OCEAN vector.
+
+        根据OCEAN向量获取主导人格特质。
+        """
+        traits = []
+        trait_names = ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"]
+        
+        for i, value in enumerate(self.vector):
+            if value > 0.3:
+                traits.append(f"high_{trait_names[i]}")
+            elif value < -0.3:
+                traits.append(f"low_{trait_names[i]}")
+        
+        self.logger.debug("Dominant traits: %s", traits)
+        return traits
+
+    def get_personality_summary(self) -> str:
+        """Get a comprehensive personality summary.
+
+        获取综合人格描述。
+        """
+        traits = self.get_dominant_traits()
+        style = self.get_personality_style()
+        
+        summary_parts = []
+        if traits:
+            summary_parts.append(f"Traits: {', '.join(traits)}")
+        if style != "neutral":
+            summary_parts.append(f"Style: {style}")
+        
+        summary = " | ".join(summary_parts) if summary_parts else "neutral"
+        self.logger.debug("Personality summary: %s", summary)
+        return summary
+
     def get_vector(self):
         """Return a copy of the current OCEAN vector.
 
