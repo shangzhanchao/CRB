@@ -1,7 +1,5 @@
 # CRB - Companion Robot Brain
 # 陪伴机器人智能大脑
-# CRB - Companion Robot Brain
-# 陪伴机器人智能大脑
 
 一个基于Python的AI陪伴机器人智能大脑系统，具备记忆、人格成长和情感智能功能。
 
