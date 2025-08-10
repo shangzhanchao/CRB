@@ -24,6 +24,7 @@ from .constants import (
     LOCAL_MEMORY_PATH,
     LOG_LEVEL,
 )
+from ai_core.constants import HISTORY_MAX_RECORDS
 from .qwen_service import get_qwen_service
 from .doubao_service import get_doubao_service
 
@@ -103,39 +104,72 @@ async def async_call_tts(text: str, url: str = DEFAULT_TTS_URL) -> str:
 
 
 def call_llm(prompt: str, url: str = None) -> str:
-    if url == "qwen":
-        service = get_qwen_service()
-        return service._call_sync(prompt, session_id=None, stream=False)
-    elif url == "doubao":
+    """调用LLM服务
+    
+    Parameters
+    ----------
+    prompt : str
+        发送给模型的提示词
+    url : str
+        模型服务类型，支持 'doubao' 等
+        
+    Returns
+    -------
+    str
+        模型返回的文本内容
+    """
+    if url == "doubao":
         service = get_doubao_service()
         return service._call_sync(prompt, system_prompt=None, history=None)
-    # 其他模型逻辑...
-    logger.warning("call_llm: 非qwen/doubao模型未实现")
-    return ""
+    else:
+        logger.warning(f"call_llm: 未实现的模型类型 {url}")
+        return ""
 
 
 async def async_call_llm(prompt: str, url: str = None) -> str:
-    if url == "qwen":
-        service = get_qwen_service()
-        return await service.call(prompt, session_id=None, stream=False)
-    elif url == "doubao":
+    """异步调用LLM服务
+    
+    Parameters
+    ----------
+    prompt : str
+        发送给模型的提示词
+    url : str
+        模型服务类型，支持 'doubao' 等
+        
+    Returns
+    -------
+    str
+        模型返回的文本内容
+    """
+    if url == "doubao":
         service = get_doubao_service()
         return await service.call(prompt, system_prompt=None, history=None)
-    # 其他模型逻辑...
-    logger.warning("async_call_llm: 非qwen/doubao模型未实现")
-    return ""
+    else:
+        logger.warning(f"async_call_llm: 未实现的模型类型 {url}")
+        return ""
 
 
 def call_llm_stream(prompt: str, url: str = None):
-    if url == "qwen":
-        service = get_qwen_service()
-        return service.stream(prompt, session_id=None)
-    elif url == "doubao":
+    """流式调用LLM服务
+    
+    Parameters
+    ----------
+    prompt : str
+        发送给模型的提示词
+    url : str
+        模型服务类型，支持 'doubao' 等
+        
+    Returns
+    -------
+    AsyncGenerator
+        流式返回的文本内容
+    """
+    if url == "doubao":
         service = get_doubao_service()
         return service.stream(prompt, system_prompt=None, history=None)
-    # 其他模型逻辑...
-    logger.warning("call_llm_stream: 非qwen/doubao模型未实现")
-    return None
+    else:
+        logger.warning(f"call_llm_stream: 未实现的模型类型 {url}")
+        return None
 
 
 def call_voiceprint(audio_path: str, url: str = DEFAULT_VOICEPRINT_URL) -> str:
@@ -214,7 +248,7 @@ async def async_call_memory_save(
 
 def call_memory_query(
     prompt: str,
-    top_k: int = 3,
+    top_k: int = HISTORY_MAX_RECORDS,
     url: str = DEFAULT_MEMORY_QUERY_URL,
     fallback_path: str = LOCAL_MEMORY_PATH,
 ) -> Optional[list[Dict[str, Any]]]:
@@ -236,7 +270,7 @@ def call_memory_query(
 
 async def async_call_memory_query(
     prompt: str,
-    top_k: int = 3,
+    top_k: int = HISTORY_MAX_RECORDS,
     url: str = DEFAULT_MEMORY_QUERY_URL,
     fallback_path: str = LOCAL_MEMORY_PATH,
 ) -> Optional[list[Dict[str, Any]]]:

@@ -101,12 +101,12 @@ class PersonalityEngine:
         extroversion = self.vector[2]  # index 2 corresponds to Extraversion
         if extroversion > 0.5:
             # 高外向性 -> 热情
-            style = "enthusiastic"
+            style = "热情开朗"
         elif extroversion < -0.5:
             # 低外向性 -> 冷淡
-            style = "cold"
+            style = "冷静理性"
         else:
-            style = "neutral"
+            style = "温和平衡"
         self.logger.debug("Personality style: %s", style)
         return style
 

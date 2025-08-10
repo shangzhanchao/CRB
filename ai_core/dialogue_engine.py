@@ -184,11 +184,11 @@ class DialogueEngine:
             valid_responses = []
             for p in past:
                 response = p["ai_response"].strip()
-                user_text = p["user_text"].strip()
+                memory_user_text = p["user_text"].strip()  # 使用不同的变量名避免覆盖
                 # 确保回复不为空且有意义
-                if response and len(response) > 2 and not response.startswith("[") and user_text:
+                if response and len(response) > 2 and not response.startswith("[") and memory_user_text:
                     valid_responses.append({
-                        "user": user_text,
+                        "user": memory_user_text,
                         "ai": response,
                         "mood": p.get("mood_tag", "neutral")
                     })
@@ -230,11 +230,11 @@ class DialogueEngine:
 
         # 使用提示词融合算法构建优化提示词
         stage_info = {
-            "prompt": f"{STAGE_LLM_PROMPTS.get(self.stage, '')} {STAGE_LLM_PROMPTS_CN.get(self.stage, '')}"
+            "prompt": f"{STAGE_LLM_PROMPTS.get(self.stage, '')}"
         }
         
         personality_info = {
-            "traits": f"{', '.join(OCEAN_LLM_PROMPTS.values())} ({', '.join(OCEAN_LLM_PROMPTS_CN.values())})",
+            "traits": f"{', '.join(OCEAN_LLM_PROMPTS.values())}",
             "style": style,
             "summary": personality_summary,
             "dominant_traits": dominant_traits
@@ -264,9 +264,51 @@ class DialogueEngine:
         )
         
         # 使用融合算法生成优化提示词
-        prompt = self.prompt_fusion.fuse_prompts(factors)
+        # 创建机器人动作和表情指令
+        from .prompt_fusion import create_robot_actions_from_emotion, create_robot_expressions_from_emotion
+        robot_actions = create_robot_actions_from_emotion(mood_tag)
+        robot_expressions = create_robot_expressions_from_emotion(mood_tag)
+        
+        # 创建上下文信息
+        context_info = {
+            "用户ID": user_id,
+            "触摸状态": "是" if touched else "否",
+            "触摸区域": str(touch_zone) if touched else "无",
+            "成长阶段": self.stage,
+            "人格风格": style
+        }
+        
+        # 使用新的综合提示词方法
+        prompt = self.prompt_fusion.create_comprehensive_prompt(
+            factors=factors,
+            robot_actions=robot_actions,
+            robot_expressions=robot_expressions,
+            context_info=context_info
+        )
         
         # 打印详细的提示词信息
+        print("\n" + "="*80)
+        print("LLM提示词融合详细信息")
+        print("="*80)
+        print(f"成长阶段: {self.stage}")
+        print(f"人格风格: {style}")
+        print(f"人格摘要: {personality_summary}")
+        print(f"主导特质: {dominant_traits}")
+        print(f"触摸区域: {touch_zone if touched else 'None'}")
+        print(f"用户情绪: {mood_tag}")
+        print(f"记忆记录数: {len(past)}")
+        print(f"记忆摘要: {past_summary[:100]}...")
+        print(f"用户输入: {user_text}")
+        print(f"提示词因子数量: {len(factors)}")
+        print("-"*80)
+        print("融合后的完整提示词:")
+        print("-"*80)
+        print(prompt)
+        print("-"*80)
+        print("提示词结束")
+        print("="*80)
+        
+        # 同时记录到日志
         logger.info("=== LLM Prompt Fusion ===")
         logger.info(f"Growth Stage: {self.stage}")
         logger.info(f"Personality Style: {style}")
@@ -285,30 +327,52 @@ class DialogueEngine:
         response = base_resp
         if self.llm_url:
             try:
+                print("\n" + "="*80)
+                print("LLM调用详细信息")
+                print("="*80)
+                print(f"服务类型: {self.llm_url}")
+                print(f"用户输入: {user_text}")
+                print(f"情绪状态: {mood_tag}")
+                print(f"用户ID: {user_id}")
+                print(f"触摸状态: {touched}")
+                print(f"触摸区域: {touch_zone if touched else 'None'}")
+                print(f"成长阶段: {self.stage}")
+                print(f"人格风格: {style}")
+                print(f"人格摘要: {personality_summary}")
+                print(f"主导特质: {', '.join(dominant_traits)}")
+                print(f"记忆记录数: {len(past)}")
+                print(f"记忆摘要: {past_summary[:100]}...")
+                print("-" * 80)
+                print("发送给LLM的完整提示词:")
+                print("-" * 80)
+                print(prompt)
+                print("-" * 80)
+                
+                # 同时记录到日志
                 logger.info("=" * 80)
-                logger.info("🤖 LLM调用详细信息")
+                logger.info("LLM调用详细信息")
                 logger.info("=" * 80)
-                logger.info(f"📡 服务类型: {self.llm_url}")
-                logger.info(f"🎯 用户输入: {user_text}")
-                logger.info(f"😊 情绪状态: {mood_tag}")
-                logger.info(f"👤 用户ID: {user_id}")
-                logger.info(f"🤗 触摸状态: {touched}")
-                logger.info(f"📍 触摸区域: {touch_zone if touched else 'None'}")
-                logger.info(f"🌱 成长阶段: {self.stage}")
-                logger.info(f"🎭 人格风格: {style}")
-                logger.info(f"📝 人格摘要: {personality_summary}")
-                logger.info(f"⭐ 主导特质: {', '.join(dominant_traits)}")
-                logger.info(f"💾 记忆记录数: {len(past)}")
-                logger.info(f"📚 记忆摘要: {past_summary[:100]}...")
+                logger.info(f"服务类型: {self.llm_url}")
+                logger.info(f"用户输入: {user_text}")
+                logger.info(f"情绪状态: {mood_tag}")
+                logger.info(f"用户ID: {user_id}")
+                logger.info(f"触摸状态: {touched}")
+                logger.info(f"触摸区域: {touch_zone if touched else 'None'}")
+                logger.info(f"成长阶段: {self.stage}")
+                logger.info(f"人格风格: {style}")
+                logger.info(f"人格摘要: {personality_summary}")
+                logger.info(f"主导特质: {', '.join(dominant_traits)}")
+                logger.info(f"记忆记录数: {len(past)}")
+                logger.info(f"记忆摘要: {past_summary[:100]}...")
                 logger.info("-" * 80)
-                logger.info("🔧 优化后的提示词:")
+                logger.info("优化后的提示词:")
                 logger.info(prompt)
-                logger.info("-" * 80)
                 
                 # 如果是百炼服务，使用异步调用
                 if self.llm_url == "qwen" or self.llm_url == "qwen-service":
                     import asyncio
                     from .service_api import async_call_llm
+                    print("🚀 调用百炼API...")
                     logger.info("🚀 调用百炼API...")
                     # 检查是否已经在事件循环中
                     try:
@@ -327,27 +391,93 @@ class DialogueEngine:
 3. 主导特质：{', '.join(dominant_traits)}
 4. 当前风格：{style}
 
-请根据用户输入和上下文生成自然、友好的回复。"""
+### 输出格式规范
+请严格按照以下JSON格式输出回复：
+{{
+    "text": "你的文本回复内容",
+    "emotion": "当前情绪状态",
+    "action": "相关动作",
+    "expression": "表情描述"
+}}
+
+请根据用户输入和上下文生成自然、友好的回复，并确保输出格式符合上述JSON规范。"""
+                    print("🚀 调用豆包API...")
+                    print(f"📋 系统提示词: {system_prompt}")
                     logger.info("🚀 调用豆包API...")
                     logger.info(f"📋 系统提示词: {system_prompt}")
                     from .doubao_service import get_doubao_service
                     service = get_doubao_service()
                     llm_out = service._call_sync(prompt, system_prompt=system_prompt, history=None)
                 else:
+                    print(f"🚀 调用其他API: {self.llm_url}")
                     logger.info(f"🚀 调用其他API: {self.llm_url}")
                     llm_out = call_llm(prompt, self.llm_url)
                 
+                print("\n" + "="*80)
+                print("📤 LLM原始输出:")
+                print("="*80)
+                print(llm_out)
+                print("="*80)
                 logger.info(f"📤 LLM原始输出: {llm_out}")
                 
                 if llm_out and llm_out.strip():
-                    response = llm_out.strip()
-                    logger.info(f"✅ LLM响应成功: {response[:200]}...")
+                    # 尝试解析LLM返回的JSON格式
+                    raw_response = llm_out.strip()
+                    print(f"📤 LLM原始输出: {raw_response}")
+                    logger.info(f"📤 LLM原始输出: {raw_response}")
+                    
+                    # 尝试解析JSON格式的响应
+                    try:
+                        import json
+                        # 检查是否包含JSON格式
+                        if raw_response.strip().startswith('{') and raw_response.strip().endswith('}'):
+                            parsed_response = json.loads(raw_response)
+                            if isinstance(parsed_response, dict):
+                                # 提取text字段
+                                if 'text' in parsed_response:
+                                    response = parsed_response['text']
+                                    print(f"✅ 成功解析JSON格式响应: {response}")
+                                    logger.info(f"✅ 成功解析JSON格式响应: {response}")
+                                    
+                                    # 保存解析出的其他字段，供后续使用
+                                    if 'emotion' in parsed_response:
+                                        self._parsed_emotion = parsed_response['emotion']
+                                        print(f"📊 解析出情绪: {parsed_response['emotion']}")
+                                    if 'action' in parsed_response:
+                                        self._parsed_action = parsed_response['action']
+                                        print(f"🤸 解析出动作: {parsed_response['action']}")
+                                    if 'expression' in parsed_response:
+                                        self._parsed_expression = parsed_response['expression']
+                                        print(f"🎭 解析出表情: {parsed_response['expression']}")
+                                else:
+                                    response = raw_response
+                                    print("⚠️ JSON格式不包含text字段，使用原始响应")
+                                    logger.warning("⚠️ JSON格式不包含text字段，使用原始响应")
+                            else:
+                                response = raw_response
+                                print("⚠️ 解析的JSON不是字典格式，使用原始响应")
+                                logger.warning("⚠️ 解析的JSON不是字典格式，使用原始响应")
+                        else:
+                            response = raw_response
+                            print("✅ 使用原始文本响应")
+                            logger.info("✅ 使用原始文本响应")
+                    except json.JSONDecodeError:
+                        response = raw_response
+                        print("⚠️ JSON解析失败，使用原始响应")
+                        logger.warning("⚠️ JSON解析失败，使用原始响应")
+                    except Exception as e:
+                        response = raw_response
+                        print(f"⚠️ 响应处理异常: {e}，使用原始响应")
+                        logger.warning(f"⚠️ 响应处理异常: {e}，使用原始响应")
                 else:
+                    print("⚠️ LLM返回空响应，使用基础回复")
                     logger.warning("⚠️ LLM返回空响应，使用基础回复")
             except Exception as e:
+                print(f"❌ LLM调用失败: {e}, 使用基础回复")
                 logger.error(f"❌ LLM调用失败: {e}, 使用基础回复")
                 response = base_resp
         else:
+            print("⚠️ 未配置LLM URL，使用基础回复")
             logger.warning("⚠️ 未配置LLM URL，使用基础回复")
 
         # 4. store this interaction in memory
@@ -390,6 +520,17 @@ class DialogueEngine:
             touch_action = touch_actions.get(touch_zone, "A100:hug|拥抱动作")
             action.append(touch_action)
         
+        print("\n" + "="*80)
+        print("🎭 表情输出:")
+        print("="*80)
+        print(expression)
+        print("="*80)
+        print("\n" + "="*80)
+        print("🤸 动作输出:")
+        print("="*80)
+        print(action)
+        print("="*80)
+        
         logger.info("🎭 表情输出: %s", expression)
         logger.info("🤸 动作输出: %s", action)
 
@@ -398,6 +539,11 @@ class DialogueEngine:
         if not audio_url:
             audio_url = "n/a"  # 保证音频字段不为空
 
+        print("\n" + "="*80)
+        print("🎯 最终生成的回复:")
+        print("="*80)
+        print(response)
+        print("="*80)
         logger.info("Generated response: %s", response)
 
         return DialogueResponse(

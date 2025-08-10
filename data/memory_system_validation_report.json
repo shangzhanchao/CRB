@@ -1,0 +1,59 @@
+{
+  "timestamp": 1754365331.1485624,
+  "robot_id": "test_robot_001",
+  "report": {
+    "total_tests": 8,
+    "passed_tests": 5,
+    "success_rate": 62.5,
+    "results": [
+      {
+        "test_name": "多层次记忆架构",
+        "passed": true,
+        "details": "短期记忆: True, 语义记忆: True, 情感记忆: True, 上下文记忆: True",
+        "performance_ms": 0.0
+      },
+      {
+        "test_name": "会话管理功能",
+        "passed": true,
+        "details": "会话创建: True, 连续性: True, 统计: True, 清除: True",
+        "performance_ms": 0.0
+      },
+      {
+        "test_name": "记忆融合算法",
+        "passed": true,
+        "details": "融合结果: True, 权重分配: True, 记忆数: 3",
+        "performance_ms": 0.23126602172851562
+      },
+      {
+        "test_name": "重要性评分机制",
+        "passed": true,
+        "details": "评分范围: True, 优先级排序: True, 关键词提升: True",
+        "performance_ms": 0.0
+      },
+      {
+        "test_name": "线程安全性能",
+        "passed": true,
+        "details": "数据完整性: True, 无异常: True, 记录数: 124",
+        "performance_ms": 181.3828945159912
+      },
+      {
+        "test_name": "数据库持久化",
+        "passed": false,
+        "details": "数据持久化: False, 会话持久化: True, 内容正确: False",
+        "performance_ms": 0.0
+      },
+      {
+        "test_name": "对话引擎集成",
+        "passed": false,
+        "details": "会话管理: True, 对话生成: False, 记忆统计: True",
+        "performance_ms": 0.0
+      },
+      {
+        "test_name": "智能核心集成",
+        "passed": false,
+        "details": "同步处理: False, 异步处理: True",
+        "performance_ms": 0.0
+      }
+    ]
+  }
+}

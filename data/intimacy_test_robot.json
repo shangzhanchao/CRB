@@ -1,0 +1,44 @@
+{
+  "robot_id": "test_robot",
+  "intimacy_value": 78,
+  "last_update": "2025-08-06T14:12:30.708953",
+  "touch_history": [
+    {
+      "zone": 0,
+      "bonus": 5,
+      "timestamp": "2025-08-06T12:00:14.568646",
+      "old_value": 50,
+      "new_value": 55
+    },
+    {
+      "zone": 0,
+      "bonus": 5,
+      "timestamp": "2025-08-06T13:57:09.255916",
+      "old_value": 55,
+      "new_value": 60
+    },
+    {
+      "zone": 1,
+      "bonus": 8,
+      "timestamp": "2025-08-06T13:57:10.518292",
+      "old_value": 60,
+      "new_value": 68
+    },
+    {
+      "zone": 0,
+      "bonus": 5,
+      "timestamp": "2025-08-06T14:03:06.071614",
+      "old_value": 68,
+      "new_value": 73
+    },
+    {
+      "zone": 0,
+      "bonus": 5,
+      "timestamp": "2025-08-06T14:12:30.708947",
+      "old_value": 73,
+      "new_value": 78
+    }
+  ],
+  "interaction_count": 0,
+  "level_history": []
+}

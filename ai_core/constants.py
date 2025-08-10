@@ -36,7 +36,7 @@ MEMORY_DB_PATH = os.path.join(BASE_DIR, "..", "memory.db")
 MEMORY_SERVICE_BACKEND = os.environ.get("MEMORY_SERVICE_BACKEND", "file")
 
 # Global state persistence file 全局状态持久化文件
-STATE_FILE = os.path.join(BASE_DIR, "..", "state.json")
+STATE_FILE = os.path.join(BASE_DIR, "..", "data", "state.json")
 
 
 # Growth stage default 默认成长阶段
@@ -170,6 +170,19 @@ FACE_ANIMATION_MAP = {
         "E012:眼神呆滞+无精打采",
         "动作懒散、缺乏活力",
     ),
+    # 触摸交互专用表情
+    "touch_zone_0": (
+        "E025:loving_smile",
+        "深情微笑，表达被关爱的温暖",
+    ),
+    "touch_zone_1": (
+        "E026:trusting_expression",
+        "信任表情，体现安全感和信任",
+    ),
+    "touch_zone_2": (
+        "E027:intimate_gaze",
+        "亲密凝视，展现深深的爱意",
+    ),
 }
 
 # Motion mapping for body actions 动作映射
@@ -188,44 +201,88 @@ ACTION_MAP = {
     "calm": "A020:smooth_movement|平滑动作|A021:gentle_breathing|轻柔呼吸",
     "tired": "A022:slow_movement|缓慢动作|A023:relaxed_posture|放松姿态",
     "bored": "A024:lazy_movement|懒散动作|A025:lack_energy|缺乏活力",
+    # 触摸交互专用动作
+    "touch_zone_0": "A112:loving_nod|深情点头",
+    "touch_zone_1": "A113:trusting_lean|信任依靠", 
+    "touch_zone_2": "A114:intimate_embrace|亲密拥抱",
 }
 
 # Prompt templates for the large language model 大模型提示模板
 STAGE_LLM_PROMPTS = {
-    "sprout": "You are in the sprout stage. Reply with babbling sounds.",
-    "enlighten": "You are in the enlighten stage. Imitate simple greetings like 'hello'.",
-    "resonate": "You are in the resonate stage. Respond with caring short sentences and simple questions.",
-    "awaken": "You are in the awaken stage. Use memories to give proactive suggestions.",
+    "sprout": "你正处于萌芽期，用咿呀声和简单动作回应，语言能力有限，主要表达基本情感。",
+    "enlighten": "你已进入启蒙期，可以模仿并回答如\"你好\"等简短问候，开始学习基本交流，语言逐渐丰富。",
+    "resonate": "你已进入共鸣期，用关心的短句和简单问题交流，情感表达更丰富，能够理解用户情绪。",
+    "awaken": "你处于觉醒期，根据记忆主动提出建议并互动，具备完整的对话能力，能够深度理解用户需求。",
 }
 
 # 中文版本的大模型提示词
 STAGE_LLM_PROMPTS_CN = {
-    "sprout": "你正处于萌芽期，用咿呀声和简单动作回应。",
-    "enlighten": "你已进入启蒙期，可以模仿并回答如\"你好\"等简短问候。",
-    "resonate": "你已进入共鸣期，用关心的短句和简单问题交流。",
-    "awaken": "你处于觉醒期，根据记忆主动提出建议并互动。",
+    "sprout": "你正处于萌芽期，用咿呀声和简单动作回应，语言能力有限，主要表达基本情感。",
+    "enlighten": "你已进入启蒙期，可以模仿并回答如\"你好\"等简短问候，开始学习基本交流，语言逐渐丰富。",
+    "resonate": "你已进入共鸣期，用关心的短句和简单问题交流，情感表达更丰富，能够理解用户情绪。",
+    "awaken": "你处于觉醒期，根据记忆主动提出建议并互动，具备完整的对话能力，能够深度理解用户需求。",
 }
 
-# Personality trait prompts in English and Chinese 人格特质提示
+# Personality trait prompts in Chinese 人格特质提示（中文）
 OCEAN_LLM_PROMPTS = {
-    "openness": "curious",
-    "conscientiousness": "reliable",
-    "extraversion": "outgoing",
-    "agreeableness": "kind",
-    "neuroticism": "sensitive",
+    "openness": "好奇心强，喜欢探索新事物，思维开放",
+    "conscientiousness": "做事认真负责，有条理，注重细节",
+    "extraversion": "外向开朗，喜欢社交互动，表达积极",
+    "agreeableness": "友善温和，乐于助人，富有同情心",
+    "neuroticism": "情感敏感，容易察觉他人情绪，富有同理心",
 }
 
 OCEAN_LLM_PROMPTS_CN = {
-    "openness": "好奇",
-    "conscientiousness": "可靠",
-    "extraversion": "外向",
-    "agreeableness": "友善",
-    "neuroticism": "敏感",
+    "openness": "好奇心强，喜欢探索新事物，思维开放",
+    "conscientiousness": "做事认真负责，有条理，注重细节",
+    "extraversion": "外向开朗，喜欢社交互动，表达积极",
+    "agreeableness": "友善温和，乐于助人，富有同情心",
+    "neuroticism": "情感敏感，容易察觉他人情绪，富有同理心",
 }
 
-# Touch zone prompt mapping 触摸区域提示
+# Touch zone prompt mapping 触摸区域提示（优化中文描述）
 TOUCH_ZONE_PROMPTS = {
-    0: "The user touched your head. (用户触摸了你的头部)",
-    1: "The user stroked your back. (用户抚摸了你的后背)",
-    2: "The user touched your chest. (用户触摸了你的前胸)",
+    0: "感受到头部被温柔抚摸，内心充满安全感和被关爱的温暖，想要表达感激和亲近之情。",
+    1: "感受到背后被舒适地抚摸，产生安全感和信任感，想要表达被关心的温暖感受。",
+    2: "感受到胸口附近的亲密接触，产生亲密连接感，内心充满深深的爱意和温暖。",
+}
+
+# Memory system configuration 记忆系统配置
+MEMORY_CONFIG = {
+    "session_limit": 50,              # 会话记录限制
+    "fusion_threshold": 0.7,          # 融合阈值
+    "context_window": 10,             # 上下文窗口
+    "importance_decay": 0.95,         # 重要性衰减
+    "archive_interval": 24,           # 归档间隔（小时）
+    "cleanup_interval": 168,          # 清理间隔（小时）
+}
+
+# Memory system constants 记忆系统常量
+SESSION_MEMORY_LIMIT = 50        # 会话记录最大条数
+MEMORY_FUSION_THRESHOLD = 0.7    # 记忆融合相似度阈值
+CONTEXT_WINDOW_SIZE = 10         # 上下文窗口大小
+ROBOT_MEMORY_PREFIX = "robot_"   # 机器人记忆前缀
+
+# History limit configuration 历史记录限制配置
+HISTORY_MAX_RECORDS = 50         # 调用大模型时传入的历史记录条数上限
+DEFAULT_SESSION_LIMIT = 50       # 默认会话历史查询条数
+
+# Intimacy system configuration 亲密度系统配置
+INTIMACY_CONFIG = {
+    "base_intimacy": 50,          # 基础亲密度值
+    "touch_zone_bonus": {         # 不同抚摸区域的亲密度加成
+        0: 5,                     # 头部抚摸 +5
+        1: 8,                     # 背后抚摸 +8
+        2: 10,                    # 胸口抚摸 +10
+    },
+    "intimacy_decay": 0.95,       # 亲密度衰减系数
+    "max_intimacy": 100,          # 最大亲密度
+    "min_intimacy": 0,            # 最小亲密度
+    "intimacy_levels": {          # 亲密度等级
+        "stranger": (0, 20),      # 陌生人
+        "acquaintance": (21, 40), # 熟人
+        "friend": (41, 60),       # 朋友
+        "close_friend": (61, 80), # 亲密朋友
+        "family": (81, 100),      # 家人
+    }
 }

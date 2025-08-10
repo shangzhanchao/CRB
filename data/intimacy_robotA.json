@@ -1,0 +1,57 @@
+{
+  "robot_id": "robotA",
+  "intimacy_value": 89,
+  "last_update": "2025-08-10T12:50:26.014335",
+  "touch_history": [
+    {
+      "zone": 0,
+      "bonus": 5,
+      "timestamp": "2025-08-10T10:56:07.982012",
+      "old_value": 50,
+      "new_value": 55
+    },
+    {
+      "zone": 0,
+      "bonus": 5,
+      "timestamp": "2025-08-10T12:16:23.783490",
+      "old_value": 55,
+      "new_value": 60
+    },
+    {
+      "zone": 1,
+      "bonus": 8,
+      "timestamp": "2025-08-10T12:18:02.831202",
+      "old_value": 60,
+      "new_value": 68
+    },
+    {
+      "zone": 1,
+      "bonus": 8,
+      "timestamp": "2025-08-10T12:18:16.648533",
+      "old_value": 68,
+      "new_value": 76
+    },
+    {
+      "zone": 0,
+      "bonus": 5,
+      "timestamp": "2025-08-10T12:40:04.614505",
+      "old_value": 76,
+      "new_value": 81
+    },
+    {
+      "zone": 1,
+      "bonus": 8,
+      "timestamp": "2025-08-10T12:50:26.014315",
+      "old_value": 81,
+      "new_value": 89
+    }
+  ],
+  "interaction_count": 0,
+  "level_history": [
+    {
+      "old_level": "friend",
+      "new_level": "close_friend",
+      "timestamp": "2025-08-10T12:18:02.831886"
+    }
+  ]
+}

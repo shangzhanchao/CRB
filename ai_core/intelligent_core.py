@@ -19,7 +19,7 @@ from typing import Optional, Tuple
 import asyncio
 import logging
 
-from .dialogue_engine import DialogueEngine, DialogueResponse
+from .enhanced_dialogue_engine import EnhancedDialogueEngine, DialogueResponse
 from .emotion_perception import EmotionPerception
 from .constants import (
     DEFAULT_AUDIO_PATH,
@@ -44,6 +44,7 @@ class UserInput:
     text: str | None = None        # 文本内容可为空
     robot_id: str = ""             # 机器人编号 (必填)
     touch_zone: int | None = None  # 触摸区域编号，可选
+    session_id: str | None = None  # 会话ID，用于上下文连续性
 
 
 class IntelligentCore:
@@ -54,7 +55,8 @@ class IntelligentCore:
 
     def __init__(
         self,
-        dialogue: Optional[DialogueEngine] = None,
+        robot_id: str = "robotA",
+        dialogue: Optional[EnhancedDialogueEngine] = None,
         emotion: Optional[EmotionPerception] = None,
         asr_url: str | None = None,
         tts_url: str | None = None,
@@ -67,14 +69,16 @@ class IntelligentCore:
 
         Parameters
         ----------
-        dialogue: DialogueEngine, optional
-            Custom dialogue engine. 默认为 :class:`DialogueEngine`。
+        robot_id: str
+            机器人ID
+        dialogue: EnhancedDialogueEngine, optional
+            Custom dialogue engine. 默认为 :class:`EnhancedDialogueEngine`。
         emotion: EmotionPerception, optional
             Emotion perception module. 默认为 :class:`EmotionPerception`。
         asr_url: str | None, optional
             Speech recognition service endpoint. ``None`` disables ASR.
         tts_url: str | None, optional
-            Text to speech service endpoint. ``None`` disables TTS.
+            Text to speech service endpoint.
         llm_url: str | None, optional
             Large language model service endpoint.
         voiceprint_url: str | None, optional
@@ -85,7 +89,12 @@ class IntelligentCore:
             from .constants import DEFAULT_LLM_URL
             llm_url = DEFAULT_LLM_URL
         
-        self.dialogue = dialogue or DialogueEngine(llm_url=llm_url, tts_url=tts_url)  # 对话系统
+        self.robot_id = robot_id
+        self.dialogue = dialogue or EnhancedDialogueEngine(
+            robot_id=robot_id,
+            llm_url=llm_url, 
+            tts_url=tts_url
+        )  # 增强对话系统
         self.emotion = emotion or EmotionPerception(
             voiceprint_url=voiceprint_url,
             llm_url=llm_url,
@@ -93,134 +102,141 @@ class IntelligentCore:
             personality=self.dialogue.personality,
         )   # 情绪识别系统
         self.asr_url = asr_url
+        
+        logger.info(f"🔧 智能核心初始化完成")
+        logger.info(f"   🤖 机器人ID: {robot_id}")
+        logger.info(f"   💬 对话引擎: {'已连接' if dialogue else '新建'}")
+        logger.info(f"   😊 情绪识别: {'已连接' if emotion else '新建'}")
+        logger.info(f"   🎤 ASR服务: {asr_url or '未配置'}")
+        logger.info(f"   🔊 TTS服务: {tts_url or '未配置'}")
+        logger.info(f"   🤖 LLM服务: {llm_url or '未配置'}")
 
     def _resolve_paths(self, user: UserInput) -> Tuple[str, str]:
         """Return audio and image paths with fallbacks.
 
         返回解析第一位可选路径，如不提供则使用默认文件。
         """
-        audio = user.audio_path or DEFAULT_AUDIO_PATH
-        image = user.image_path or DEFAULT_IMAGE_PATH
-        return audio, image
+        audio_path = user.audio_path or DEFAULT_AUDIO_PATH
+        image_or_video = user.image_path or user.video_path or DEFAULT_IMAGE_PATH
+        return audio_path, image_or_video
 
     def _ensure_text(self, user: UserInput, audio_path: str) -> None:
-        """Fill ``user.text`` by ASR or empty string when missing.
+        """Ensure user.text is populated, using ASR if needed.
 
-        当用户没有提供文本时，若指定 ASR 服务会自动识别语音，否则使用空字符代替。
+        确保用户文本已填充，如需要则使用ASR。
         """
-        if user.text:
-            return
-        if self.asr_url:
-            from .service_api import call_asr
-
-            user.text = call_asr(audio_path, self.asr_url)
-            logger.debug("ASR result: %s", user.text)
-        else:
-            user.text = ""
-            logger.debug("No text input; defaulting to empty string")
+        if not user.text and self.asr_url:
+            try:
+                from .service_api import call_asr
+                user.text = call_asr(audio_path, self.asr_url)
+                logger.info(f"ASR识别结果: {user.text}")
+            except Exception as e:
+                logger.error(f"ASR调用失败: {e}")
+                user.text = ""
 
     def _perceive(self, audio_path: str, image_or_video: str, text: str) -> Tuple[str, str]:
-        """Return (mood, user_id) from multimodal perception.
+        """Perceive emotion from multimodal input.
 
-        输入音频、图像或视频以及文本，通过情绪识别系统返回情绪标签和认证的用户ID。
+        从多模态输入感知情绪。
         """
-
-        user_id = self.emotion.recognize_identity(audio_path)
-        emotion_state = self.emotion.perceive(
-            audio_path,
-            image_or_video,
-            text=text,
-            user_id=user_id,
-        )
-        mood = emotion_state.overall(self.dialogue.personality)
-        return mood, user_id
+        try:
+            mood_tag, user_id = self.emotion.perceive_emotion(
+                audio_path, image_or_video, text
+            )
+            logger.info(f"情绪识别结果: {mood_tag}, 用户ID: {user_id}")
+            return mood_tag, user_id
+        except Exception as e:
+            logger.error(f"情绪识别失败: {e}")
+            return "neutral", "unknown"
 
     def process(self, user: UserInput) -> DialogueResponse:
-        """Process user input through the full pipeline.
+        """Process user input and generate response.
 
-        处理用户输入，按“语音 → 情绪识别 → 模型反馈 → 性格成长 → \
-        对话生成”的流程返回 ``DialogueResponse``。
+        处理用户输入并生成回复。
 
         Parameters
         ----------
         user: UserInput
-            Input data including optional text, audio, image, video and touch
-            zone. ``robot_id`` must be provided. Missing fields will use
-            defaults from :class:`UserInput`.
+            User input data container.
 
         Returns
         -------
         DialogueResponse
-            Structured reply containing non-empty ``text``, ``audio``,
-            ``action`` and ``expression`` fields.
+            Generated response with text, audio, actions and expressions.
         """
-        logger.info("Processing input for robot %s", user.robot_id)
-        from . import global_state
-        if not global_state.is_robot_allowed(user.robot_id):
-            raise ValueError(
-                f"Robot ID '{user.robot_id}' is not allowed. 请检查机器人编号是否在白名单内"
-            )
-        # Fill optional paths with defaults 用默认值填充可选路径
-        audio_path, image_path = self._resolve_paths(user)
-        # 1. ensure text content from ASR if necessary
+        logger.info(f"🎯 开始处理用户输入 - 机器人: {user.robot_id}")
+        logger.info(f"   📝 文本: {user.text}")
+        logger.info(f"   🎵 音频: {user.audio_path}")
+        logger.info(f"   🖼️ 图像: {user.image_path}")
+        logger.info(f"   🎬 视频: {user.video_path}")
+        logger.info(f"   🤗 触摸区域: {user.touch_zone}")
+        logger.info(f"   🆔 会话ID: {user.session_id}")
+
+        # 1. 解析路径
+        audio_path, image_or_video = self._resolve_paths(user)
+        
+        # 2. 确保文本内容
         self._ensure_text(user, audio_path)
-
-        # 2. emotion & identity perception
-        img_or_video = user.video_path or image_path
-        mood, user_id = self._perceive(audio_path, img_or_video, user.text)
-        if not user_id or user_id == "unknown":
-            # 声纹无法识别时创建新的访客身份
-            user_id = f"guest_{global_state.INTERACTION_COUNT + 1}"
-        logger.debug("Emotion: %s, user_id: %s", mood, user_id)
-
-        # 3. update global stats
-        global_state.increment()  # 更新全局交互计数
-        global_state.add_audio_duration(audio_path)  # 累加语音时长
-
-        # 4. dialogue generation based on personality and memory
+        
+        # 3. 情绪感知
+        mood_tag, user_id = self._perceive(audio_path, image_or_video, user.text or "")
+        
+        # 4. 生成回复
+        touched = user.touch_zone is not None
+        
         response = self.dialogue.generate_response(
-            user.text,
-            mood_tag=mood,
+            user_text=user.text or "",
+            mood_tag=mood_tag,
             user_id=user_id,
-            touched=user.touch_zone is not None,
+            touched=touched,
             touch_zone=user.touch_zone,
-        )  # 生成回复
-        logger.info("Response text: %s", response.text)
-
-        # response contains text, action, expression and optional audio URL
+            session_id=user.session_id,
+        )
+        
+        logger.info(f"✅ 处理完成")
+        logger.info(f"   📝 回复文本: {response.text}")
+        logger.info(f"   🎵 音频URL: {response.audio}")
+        logger.info(f"   🎭 表情: {response.expression}")
+        logger.info(f"   🤸 动作: {response.action}")
+        logger.info(f"   🆔 会话ID: {response.session_id}")
+        logger.info(f"   🪟 上下文摘要: {response.context_summary}")
+        logger.info(f"   💾 记忆数量: {response.memory_count}")
+        
         return response
 
     async def process_async(self, user: UserInput) -> DialogueResponse:
-        """Asynchronous version using async service APIs."""
+        """Process user input asynchronously.
 
-        logger.info("Async processing for robot %s", user.robot_id)
-        from . import global_state
+        异步处理用户输入。
 
-        if not global_state.is_robot_allowed(user.robot_id):
-            raise ValueError(
-                f"Robot ID '{user.robot_id}' is not allowed. 请检查机器人编号是否在白名单内"
-            )
-        audio_path, image_path = self._resolve_paths(user)
-        if not user.text and self.asr_url:
-            from .service_api import async_call_asr
+        Parameters
+        ----------
+        user: UserInput
+            User input data container.
 
-            user.text = await async_call_asr(audio_path, self.asr_url)
-        else:
-            user.text = user.text or ""
+        Returns
+        -------
+        DialogueResponse
+            Generated response with text, audio, actions and expressions.
+        """
+        # 在异步环境中运行同步处理
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.process, user)
 
-        img_or_video = user.video_path or image_path
-        mood, user_id = self._perceive(audio_path, img_or_video, user.text)
-        if not user_id or user_id == "unknown":
-            user_id = f"guest_{global_state.INTERACTION_COUNT + 1}"
+    def start_session(self, session_id: Optional[str] = None) -> str:
+        """开始新会话"""
+        return self.dialogue.start_session(session_id)
 
-        global_state.increment()
-        global_state.add_audio_duration(audio_path)
+    def get_memory_stats(self) -> dict:
+        """获取记忆统计信息"""
+        return self.dialogue.get_memory_stats()
 
-        response = self.dialogue.generate_response(
-            user.text,
-            mood_tag=mood,
-            user_id=user_id,
-            touched=user.touch_zone is not None,
-            touch_zone=user.touch_zone,
-        )
-        return response
+    def clear_session_memory(self, session_id: Optional[str] = None) -> int:
+        """清除会话记忆"""
+        return self.dialogue.clear_session_memory(session_id)
+
+    def close(self):
+        """关闭智能核心"""
+        if hasattr(self, 'dialogue'):
+            self.dialogue.close()
+        logger.info("🔒 智能核心已关闭")

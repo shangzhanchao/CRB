@@ -1,0 +1,16 @@
+{
+  "robot_id": "test_robot_optimized",
+  "intimacy_value": 58,
+  "last_update": "2025-08-06T14:28:06.019029",
+  "touch_history": [
+    {
+      "zone": 1,
+      "bonus": 8,
+      "timestamp": "2025-08-06T14:28:06.019022",
+      "old_value": 50,
+      "new_value": 58
+    }
+  ],
+  "interaction_count": 0,
+  "level_history": []
+}

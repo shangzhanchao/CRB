@@ -134,7 +134,7 @@ def test_growth_stage_prompts():
             }
             
             # 临时保存状态
-            with open('state.json', 'w', encoding='utf-8') as f:
+            with open('data/state.json', 'w', encoding='utf-8') as f:
                 json.dump(test_state, f, indent=2, ensure_ascii=False)
             
             # 创建核心并测试
@@ -153,7 +153,7 @@ def test_growth_stage_prompts():
             "audio_seconds": 1000.0,
             "start_time": "2024-01-01T00:00:00+00:00"
         }
-        with open('state.json', 'w', encoding='utf-8') as f:
+        with open('data/state.json', 'w', encoding='utf-8') as f:
             json.dump(original_state, f, indent=2, ensure_ascii=False)
         
         print("\n✅ 成长阶段测试完成")

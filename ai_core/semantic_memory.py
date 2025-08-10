@@ -30,6 +30,7 @@ from .constants import (
     DEFAULT_MEMORY_QUERY_URL,
     MEMORY_DB_PATH,
 )
+from ai_core.constants import HISTORY_MAX_RECORDS
 from .service_api import call_memory_save, call_memory_query
 
 try:
@@ -243,7 +244,7 @@ class SemanticMemory:
                     "Remote memory service failed; record kept locally.")
         
     def query_memory(
-        self, prompt: str, top_k: int = 3, user_id: str | None = None
+        self, prompt: str, top_k: int = HISTORY_MAX_RECORDS, user_id: str | None = None
     ) -> List[Dict[str, Any]]:
         """Return most relevant past interactions for the prompt.
 
